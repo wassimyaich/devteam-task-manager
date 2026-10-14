@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DevTeam Task Manager</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome for icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- jQuery UI CSS (pour le style du drag & drop) -->
+    <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
+    <style>
+        body { background-color: #f8f9fa; }
+        .kanban-col { background: #e9ecef; border-radius: 8px; min-height: 450px; padding: 15px; }
+        .task-card { background: white; border-radius: 6px; padding: 12px; margin-bottom: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .task-card { background: white; border-radius: 6px; padding: 12px; margin-bottom: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); cursor: grab; }
+.task-card:active { cursor: grabbing; }
+.task-card-placeholder { background: #e2e8f0; border: 2px dashed #cbd5e1; border-radius: 6px; height: 100px; margin-bottom: 12px; }
+    
+    </style>
+</head>
+<body>
+
+    <nav class="navbar navbar-dark bg-dark shadow-sm">
+        <div class="container-fluid">
+            <span class="navbar-brand mb-0 h1"><i class="fa-solid fa-code-pull-request me-2"></i>DevTeam Task Manager</span>
+        </div>
+    </nav>
+
+    <div class="container-fluid my-4">
+        <!-- NAVIGATION TABS -->
+        <ul class="nav nav-tabs mb-4" id="mainTab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="kanban-tab" data-bs-toggle="tab" data-bs-target="#kanban-pane" type="button" role="tab"><i class="fa-solid fa-kanban me-2"></i>Tableau & Tâches</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="sprint-tab" data-bs-toggle="tab" data-bs-target="#sprint-pane" type="button" role="tab"><i class="fa-solid fa-rotate me-2"></i>Sprints & Capacité</button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="mainTabContent">
+            <!-- KANBAN PANE -->
+            <div class="tab-pane fade show active" id="kanban-pane" role="tabpanel">
+                <!-- FILTER BAR -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="card-title mb-0"><i class="fa-solid fa-filter me-2"></i>Filtres & Recherche</h5>
+                            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createTaskModal">
+                                <i class="fa-solid fa-plus me-1"></i> Nouvelle Tâche
+                            </button>
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <input type="text" id="filterClient" class="form-control" placeholder="Filtrer par client...">
+                            </div>
+                            <div class="col-md-4">
+                                <select id="filterStatus" class="form-select">
+                                    <option value="">Tous les statuts</option>
+                                    <option value="1">À faire</option>
+                                    <option value="2">En cours</option>
+                                    <option value="3">Terminé</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <select id="filterPriority" class="form-select">
+                                    <option value="">Toutes les priorités</option>
+                                    <option value="1">Basse</option>
+                                    <option value="2">Moyenne</option>
+                                    <option value="3">Haute</option>
+                                    <option value="4">Critique</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- KANBAN BOARD -->
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="kanban-col" id="col-todo">
+                            <h4 class="text-secondary border-bottom pb-2 mb-3"><i class="fa-regular fa-circle me-2"></i>À faire</h4>
+                            <div id="tasks-todo"></div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="kanban-col" id="col-inprogress">
+                            <h4 class="text-primary border-bottom pb-2 mb-3"><i class="fa-solid fa-spinner me-2"></i>En cours</h4>
+                            <div id="tasks-inprogress"></div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="kanban-col" id="col-done">
+                            <h4 class="text-success border-bottom pb-2 mb-3"><i class="fa-solid fa-check-circle me-2"></i>Terminé</h4>
+                            <div id="tasks-done"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SPRINTS PANE -->
+            <div class="tab-pane fade" id="sprint-pane" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="card shadow-sm">
+                            <div class="card-body">
+                                <h5 class="card-title mb-3"><i class="fa-solid fa-plus-circle me-2"></i>Créer un Sprint</h5>
+                                <form id="formCreateSprint">
+                                    <div class="mb-3">
+                                        <label class="form-label">Nom du Sprint</label>
+                                        <input type="text" id="sprintName" class="form-control" required placeholder="Sprint 1">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Date de début</label>
+                                        <input type="date" id="sprintStart" class="form-control" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Date de fin</label>
+                                        <input type="date" id="sprintEnd" class="form-control" required>
+                                    </div>
+                                    <button type="submit" class="btn btn-success w-100">Créer le Sprint</button>
+                                </form>
+                            </div>
+                        </div>
+
+                        <div class="card shadow-sm mt-4">
+                            <div class="card-body">
+                                <h5 class="card-title mb-3"><i class="fa-solid fa-list me-2"></i>Liste des Sprints</h5>
+                                <div id="sprintsList" class="list-group"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-8">
+                        <div class="card shadow-sm">
+                            <div class="card-body" id="sprintReportContainer">
+                                <h5 class="card-title mb-3"><i class="fa-solid fa-chart-pie me-2"></i>Rapport de Capacité & Affectation</h5>
+                                <p class="text-muted">Sélectionnez un sprint à gauche pour afficher le taux d'affectation par développeur et le rapport de suivi des temps.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+<!-- MODALE SAISIE DES TEMPS -->
+<div class="modal fade" id="timeEntryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fa-solid fa-stopwatch me-2"></i>Imputer du Temps - <span id="timeModalClient"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formCreateTimeEntry">
+                    <input type="hidden" id="timeEntryTaskId">
+                    <div class="mb-3">
+                        <label class="form-label">Développeur</label>
+                        <select id="timeEntryDevId" class="form-select" required>
+                            <!-- Rempli dynamiquement -->
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Date de travail</label>
+                        <input type="date" id="timeEntryDate" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Durée (en heures)</label>
+                        <input type="number" step="0.5" min="0.5" max="24" id="timeEntryDuration" class="form-control" value="2" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Note / Commentaire (Optionnel)</label>
+                        <textarea id="timeEntryNote" class="form-control" rows="2" placeholder="Ex: Développement de la partie API..."></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-info text-white w-100">Enregistrer l'imputation</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+    <!-- MODALE CRÉATION DE TÂCHE -->
+    <div class="modal fade" id="createTaskModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fa-solid fa-plus-circle me-2"></i>Créer une Nouvelle Tâche</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formCreateTask">
+                        <div class="mb-3">
+                            <label class="form-label">Client</label>
+                            <input type="text" id="newTaskClient" class="form-control" required placeholder="Nom du client...">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Description</label>
+                            <textarea id="newTaskDescription" class="form-control" rows="2" required placeholder="Détails de la tâche..."></textarea>
+                        </div>
+                        <div class="mb-3 position-relative">
+                            <label class="form-label">Développeur Assigné</label>
+                            <input type="text" id="devSearchInput" class="form-control" placeholder="Taper le nom du développeur..." autocomplete="off">
+                            <!-- Conteneur des suggestions -->
+                            <div id="devSuggestions" class="list-group position-absolute w-100 shadow-sm" style="z-index: 1000; display: none;"></div>
+                            <!-- Champ caché pour stocker l'ID réel -->
+                            <input type="hidden" id="selectedDeveloperId">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Sprint Cible (Optionnel)</label>
+                            <select id="newTaskSprint" class="form-select">
+                                <option value="">Aucun (Backlog)</option>
+                            </select>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Estimation (Heures)</label>
+                                <input type="number" step="0.5" id="newTaskEstimatedHours" class="form-control" value="4" min="0.5" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Priorité</label>
+                                <select id="newTaskPriority" class="form-select">
+                                    <option value="1">Basse</option>
+                                    <option value="2" selected>Moyenne</option>
+                                    <option value="3">Haute</option>
+                                    <option value="4">Critique</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Date d'échéance</label>
+                            <input type="date" id="newTaskDueDate" class="form-control" required>
+                        </div>
+                        <button type="submit" class="btn btn-success w-100">Enregistrer la Tâche</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+<!-- MODALE ÉDITION DE TÂCHE -->
+<div class="modal fade" id="editTaskModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fa-solid fa-pen-to-square me-2"></i>Modifier la Tâche</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formEditTask">
+                    <input type="hidden" id="editTaskId">
+                    <div class="mb-3">
+                        <label class="form-label">Client</label>
+                        <input type="text" id="editTaskClient" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea id="editTaskDescription" class="form-control" rows="2" required></textarea>
+                    </div>
+                    <div class="mb-3 position-relative">
+                        <label class="form-label">Développeur Assigné ID</label>
+                        <input type="number" id="editTaskAssigneeId" class="form-control" required min="1">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Sprint Cible (Optionnel)</label>
+                        <select id="editTaskSprint" class="form-select">
+                            <option value="">Aucun (Backlog)</option>
+                        </select>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Estimation (Heures)</label>
+                            <input type="number" step="0.5" id="editTaskEstimatedHours" class="form-control" min="0.5" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Priorité</label>
+                            <select id="editTaskPriority" class="form-select">
+                                <option value="1">Basse</option>
+                                <option value="2">Moyenne</option>
+                                <option value="3">Haute</option>
+                                <option value="4">Critique</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Date d'échéance</label>
+                        <input type="date" id="editTaskDueDate" class="form-control" required>
+                    </div>
+                    <button type="submit" class="btn btn-warning text-dark w-100 fw-bold">Mettre à jour la Tâche</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+    <!-- jQuery & Bootstrap JS -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+    <script>
+        const API_TASKS = '/api/tasks';
+        const API_SPRINTS = '/api/sprints';
+        const API_DEVELOPERS = '/api/developers';
+
+        // Fonction utilitaire de sécurisation anti-XSS
+        function escapeHtml(text) {
+            if (!text) return '';
+            return $('<div>').text(text).html();
+        }
+
+        function loadTasks() {
+            let client = $('#filterClient').val();
+            let status = $('#filterStatus').val();
+            let priority = $('#filterPriority').val();
+
+            let url = `${API_TASKS}?`;
+            if (client) url += `client=${encodeURIComponent(client)}&`;
+            if (status !== '') url += `status=${status}&`;
+            if (priority !== '') url += `priority=${priority}&`;
+
+            $.get(url, function(tasks) {
+                $('#tasks-todo').empty();
+                $('#tasks-inprogress').empty();
+                $('#tasks-done').empty();
+
+                tasks.forEach(t => {
+                    let priorityBadges = {
+                        1: '<span class="badge bg-secondary">Basse</span>',
+                        2: '<span class="badge bg-info">Moyenne</span>',
+                        3: '<span class="badge bg-warning text-dark">Haute</span>',
+                        4: '<span class="badge bg-danger">Critique</span>'
+                    };
+                    let priorityBadge = priorityBadges[t.priority] || '';
+                    
+                    let safeClient = escapeHtml(t.client);
+                    let safeDescription = escapeHtml(t.description);
+                    let safeAssignee = escapeHtml(t.assigneeName || 'Non assigné');
+// Dans la génération de la carte dans loadTasks() :
+// Dans la génération de la carte dans loadTasks() :
+let formattedDate = t.dueDate ? t.dueDate.split('T')[0] : '';
+let sprintIdVal = t.sprintId ? t.sprintId : '';
+
+let card = `
+    <div class="task-card" data-id="${t.id}" data-client="${safeClient}">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+            <strong class="text-dark">${safeClient}</strong>${priorityBadge}
+        </div>
+        <p class="mb-2 text-muted small">${safeDescription}</p>
+        <div class="d-flex justify-content-between align-items-center text-xs text-muted mb-2">
+            <span><i class="fa-solid fa-user me-1"></i>${safeAssignee}</span>
+            <span><i class="fa-solid fa-clock me-1"></i><input type="number" step="0.5" class="form-control form-control-sm d-inline-block w-25 inline-est" data-id="${t.id}" value="${t.estimatedHours}">h</span>
+        </div>
+        <div class="d-flex justify-content-between align-items-center text-xs text-muted mb-2">
+            <span><i class="fa-solid fa-calendar-days me-1"></i>Échéance :</span>
+            <input type="date" class="form-control form-control-sm d-inline-block w-50 inline-duedate" data-id="${t.id}" value="${formattedDate}">
+        </div>
+        <div class="mt-2 d-flex justify-content-between align-items-center">
+            <div class="d-flex gap-1">
+                <button class="btn btn-sm btn-outline-info btn-open-time-modal" data-id="${t.id}" data-client="${safeClient}">
+                    <i class="fa-solid fa-stopwatch"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-warning btn-open-edit-modal" data-id="${t.id}">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                </button>
+            </div>
+            <div class="d-flex gap-1">
+                ${t.status !== 1 ? '<button class="btn btn-sm btn-outline-secondary btn-status" data-id="'+t.id+'" data-status="1">À faire</button>' : ''}
+                ${t.status !== 2 ? '<button class="btn btn-sm btn-outline-primary btn-status" data-id="'+t.id+'" data-status="2">En cours</button>' : ''}
+                ${t.status !== 3 ? '<button class="btn btn-sm btn-outline-success btn-status" data-id="'+t.id+'" data-status="3">Terminé</button>' : ''}
+            </div>
+        </div>
+    </div>
+`;
+                    if (t.status === 1) $('#tasks-todo').append(card);
+                    else if (t.status === 2) $('#tasks-inprogress').append(card);
+                    else if (t.status === 3) $('#tasks-done').append(card);
+                });
+            }).fail(function() {
+                console.error("Erreur lors du chargement des tâches.");
+            });
+        }
+
+        function loadSprints() {
+            $.get(API_SPRINTS, function(sprints) {
+                let list = $('#sprintsList').empty();
+                sprints.forEach(s => {
+                    let safeName = escapeHtml(s.name);
+                    list.append(`
+                        <button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center sprint-item" data-id="${s.id}">
+                            ${safeName}
+                            <span class="badge bg-primary rounded-pill">${s.taskCount} tâches</span>
+                        </button>
+                    `);
+                });
+            });
+        }
+
+        function loadTaskDropdowns() {
+            $.get(API_SPRINTS, function(sprints) {
+                let options = '<option value="">Aucun (Backlog)</option>';
+                sprints.forEach(s => {
+                    options += `<option value="${s.id}">${escapeHtml(s.name)}</option>`;
+                });
+                $('#newTaskSprint').html(options);
+            });
+        }
+
+        // Chargement du rapport de sprint
+        $(document).on('click', '.sprint-item', function() {
+            let id = $(this).data('id');
+            $('.sprint-item').removeClass('active');$(this).addClass('active');
+
+            $.get(`${API_SPRINTS}/${id}/capacity`, function(report) {
+                let devRows = report.developerAllocations.map(d => `
+                    <tr>
+                        <td>${escapeHtml(d.developerName)}</td>
+                        <td>${d.assignedTasksCount}</td>
+                        <td>${d.estimatedHours}h</td>
+                        <td>${d.loggedHours}h</td>
+                        <td><div class="progress"><div class="progress-bar" style="width: ${d.allocationPercentage}%">${d.allocationPercentage}%</div></div></td>
+                    </tr>
+                `).join('');
+
+                let budgetAlert = report.isOverBudget
+                    ? `<div class="alert alert-danger"><i class="fa-solid fa-triangle-exclamation me-2"></i><strong>Attention :</strong> Le temps total passé dépasse l'estimation initiale !</div>`
+                    : `<div class="alert alert-success"><i class="fa-solid fa-check-circle me-2"></i>Le sprint est dans les limites du budget initial.</div>`;
+
+                let safeSprintName = escapeHtml(report.sprintName);
+
+                $('#sprintReportContainer').html(`
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="card-title mb-0">Rapport : ${safeSprintName}</h5>
+                        <button class="btn btn-sm btn-outline-danger btn-close-sprint" data-id="${report.sprintId}"><i class="fa-solid fa-lock me-1"></i>Clôturer le Sprint</button>
+                    </div>
+                    ${budgetAlert}
+                    <div class="row text-center mb-4">
+                        <div class="col-md-4"><div class="p-3 bg-light rounded"><h6>Total Estimé</h6><h4>${report.totalEstimatedHours}h</h4></div></div>
+                        <div class="col-md-4"><div class="p-3 bg-light rounded"><h6>Total Passé</h6><h4>${report.totalLoggedHours}h</h4></div></div>
+                        <div class="col-md-4"><div class="p-3 bg-light rounded"><h6>Total Tâches</h6><h4>${report.totalTasks}</h4></div></div>
+                    </div>
+                    <h6>Taux d'affectation par développeur :</h6>
+                    <table class="table table-bordered table-sm align-middle">
+                        <thead><tr><th>Développeur</th><th>Tâches</th><th>Estimé</th><th>Passé</th><th>Affectation</th></tr></thead>
+                        <tbody>${devRows}</tbody>
+                    </table>
+                `);
+            });
+        });
+
+        // Clôture d'un sprint
+        $(document).on('click', '.btn-close-sprint', function() {
+            let id = $(this).data('id');
+            if (confirm("Voulez-vous vraiment clôturer ce sprint ?")) {
+                $.ajax({
+                    url: `${API_SPRINTS}/${id}/close`,
+                    type: 'PATCH',
+                    success: function() { 
+                        alert('Sprint clôturé avec succès !'); 
+                        loadSprints(); 
+                    },
+                    error: function() {
+                        alert('Erreur lors de la clôture du sprint.');
+                    }
+                });
+            }
+        });
+
+        // Création de sprint
+        $('#formCreateSprint').submit(function(e) {
+            e.preventDefault();
+            let data = {
+                name: $('#sprintName').val(),
+                startDate: $('#sprintStart').val() + 'T00:00:00',
+                endDate: $('#sprintEnd').val() + 'T00:00:00',
+                status: 1
+            };
+            $.ajax({
+                url: API_SPRINTS,
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(data),
+                success: function() {
+                    $('#formCreateSprint')[0].reset();
+                    loadSprints();
+                    alert('Sprint créé avec succès !');
+                },
+                error: function() {
+                    alert('Erreur lors de la création du sprint.');
+                }
+            });
+        });
+
+        // Mise à jour en ligne des heures estimées
+        $(document).on('change', '.inline-est', function() {
+            let id = $(this).data('id');
+            let val = parseFloat($(this).val());
+            if (isNaN(val) || val < 0) {
+                alert("Veuillez entrer une valeur numérique valide (>= 0).");
+                loadTasks();
+                return;
+            }
+            $.ajax({
+                url: `${API_TASKS}/${id}/inline`,
+                type: 'PATCH',
+                contentType: 'application/json',
+                data: JSON.stringify({ estimatedHours: val }),
+                error: function() {
+                    alert("Erreur lors de la mise à jour de l'estimation.");
+                    loadTasks();
+                }
+            });
+        });
+
+        // Changement de statut d'une tâche (Kanban)
+        $(document).on('click', '.btn-status', function() {
+            let id = $(this).data('id');
+            let newStatus = parseInt($(this).data('status'));
+
+            $.ajax({
+                url: `${API_TASKS}/${id}/status`,
+                type: 'PATCH',
+                contentType: 'application/json',
+                data: JSON.stringify({ status: newStatus }),
+                success: function() { loadTasks(); },
+                error: function() { alert("Erreur lors du changement de statut."); }
+            });
+        });
+
+        // Recherche dynamique des développeurs (Autocomplétion)
+        let debounceTimer;
+        $('#devSearchInput').on('input', function() {
+            clearTimeout(debounceTimer);
+            let query = $(this).val();
+
+            if (query.length < 2) {
+                $('#devSuggestions').hide();
+                return;
+            }
+
+            debounceTimer = setTimeout(function() {
+                $.get(`${API_DEVELOPERS}/search?term=${encodeURIComponent(query)}`, function(devs) {
+                    let html = '';
+                    if (devs.length === 0) {
+                        html = '<div class="list-group-item text-muted">Aucun développeur trouvé</div>';
+                    } else {
+                        devs.forEach(d => {
+                            html += `<button type="button" class="list-group-item list-group-item-action select-dev-item" data-id="${d.id}" data-name="${escapeHtml(d.name)}">
+                                        ${escapeHtml(d.name)} (${escapeHtml(d.email || 'Pas d\'email')})
+                                     </button>`;
+                        });
+                    }
+                    $('#devSuggestions').html(html).show();
+                });
+            }, 300);
+        });
+
+        // Sélection d'un développeur dans la liste d'autocomplétion
+        $(document).on('click', '.select-dev-item', function() {
+            let id = $(this).data('id');
+            let name = $(this).data('name');$('#devSearchInput').val(name);
+            $('#selectedDeveloperId').val(id); // Stocke l'ID cible
+            $('#devSuggestions').hide();
+        });
+
+        // Soumission du formulaire de création de tâche
+        $('#formCreateTask').submit(function(e) {
+            e.preventDefault();
+
+            let sprintVal = $('#newTaskSprint').val();
+            let devId = $('#selectedDeveloperId').val();
+
+            let taskData = {
+                client: $('#newTaskClient').val(),
+                description: $('#newTaskDescription').val(),
+                assigneeId: devId ? parseInt(devId) : null, // Récupération propre de l'ID caché
+                sprintId: sprintVal ? parseInt(sprintVal) : null,
+                estimatedHours: parseFloat($('#newTaskEstimatedHours').val()),
+                priority: parseInt($('#newTaskPriority').val()),
+                dueDate: $('#newTaskDueDate').val() ? $('#newTaskDueDate').val() + 'T00:00:00' : new Date().toISOString()
+            };
+
+            $.ajax({
+                url: API_TASKS,
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(taskData),
+                success: function() {
+                    $('#createTaskModal').modal('hide');
+                    $('#formCreateTask')[0].reset();
+                    $('#selectedDeveloperId').val('');
+                    $('#devSearchInput').val('');
+                    loadTasks();
+                    loadSprints();
+                    alert('Tâche créée avec succès !');
+                },
+                error: function(xhr) {
+                    alert('Erreur lors de la création de la tâche.');
+                    console.error("Détails de l'erreur :", xhr.responseText);
+                }
+            });
+        });
+
+        // Initialisation globale au chargement de la page
+     $(document).ready(function() {
+    loadTasks();
+    loadSprints();
+    loadTaskDropdowns();
+
+    $('#filterClient').on('input', loadTasks);
+    $('#filterStatus, #filterPriority').on('change', loadTasks);
+
+    // Initialisation du Drag & Drop jQuery UI sur les colonnes Kanban
+    $('#tasks-todo, #tasks-inprogress, #tasks-done').sortable({
+        connectWith: ".kanban-col div[id^='tasks-']", // Permet de passer les cartes d'une colonne à l'autre
+        placeholder: "task-card-placeholder",
+        update: function(event, ui) {
+            // S'assurer que l'événement ne se déclenche que sur la liste de destination pour éviter les doublons d'appels AJAX
+            if (this === ui.item.parent()[0]) {
+                let taskId = ui.item.data('id');
+                let parentId = ui.item.parent().attr('id');
+                
+                let newStatus = 1; // Par défaut À faire
+                if (parentId === 'tasks-inprogress') newStatus = 2;
+                else if (parentId === 'tasks-done') newStatus = 3;
+
+                // Appel AJAX pour mettre à jour le statut en base de données
+                $.ajax({
+                    url: `${API_TASKS}/${taskId}/status`,
+                    type: 'PATCH',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ status: newStatus }),
+                    error: function() {
+                        alert("Erreur lors du déplacement de la tâche.");
+                        loadTasks(); // Recharge en cas d'échec pour remettre la carte à sa place
+                    }
+                });
+            }
+        }
+    }).disableSelection();
+});
+     
+        // Mise à jour en ligne de la date d'échéance
+$(document).on('change', '.inline-duedate', function() {
+    let id = $(this).data('id');
+    let val = $(this).val();
+    if (!val) return;
+
+    $.ajax({
+        url: `${API_TASKS}/${id}/inline`,
+        type: 'PATCH',
+        contentType: 'application/json',
+        data: JSON.stringify({ dueDate: val + 'T00:00:00' }),
+        error: function() {
+            alert("Erreur lors de la mise à jour de l'échéance.");
+            loadTasks();
+        }
+    });
+});
+const API_TIME_ENTRIES = '/api/timeentries';
+
+// Charger la liste des développeurs dans le select de la modale temps
+function loadDevelopersDropdown() {
+    $.get(API_DEVELOPERS, function(devs) {
+        let options = '<option value="">Sélectionner un développeur...</option>';
+        devs.forEach(d => {
+            options += `<option value="${d.id}">${escapeHtml(d.name)}</option>`;
+        });
+        $('#timeEntryDevId').html(options);
+    });
+}
+
+// Ouvrir la modale de saisie de temps
+$(document).on('click', '.btn-open-time-modal', function() {
+    let taskId = $(this).data('id');
+    let clientName = $(this).data('client');$('#timeEntryTaskId').val(taskId);
+    $('#timeModalClient').text(clientName);
+    
+    // Mettre la date du jour par défaut
+    let today = new Date().toISOString().split('T')[0];
+    $('#timeEntryDate').val(today);
+    $('#timeEntryDuration').val('2');
+    $('#timeEntryNote').val('');
+    
+    loadDevelopersDropdown();
+    
+    let modal = new bootstrap.Modal(document.getElementById('timeEntryModal'));
+    modal.show();
+});
+
+// Soumission du formulaire d'imputation de temps
+$('#formCreateTimeEntry').submit(function(e) {
+    e.preventDefault();
+
+    let data = {
+        taskId: parseInt($('#timeEntryTaskId').val()),
+        developerId: parseInt($('#timeEntryDevId').val()),
+        workDate: $('#timeEntryDate').val() + 'T00:00:00',
+        durationHours: parseFloat($('#timeEntryDuration').val()),
+        note: $('#timeEntryNote').val()
+    };
+
+    $.ajax({
+        url: API_TIME_ENTRIES,
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(data),
+        success: function() {
+            $('#timeEntryModal').modal('hide');
+            alert('Temps imputé avec succès !');
+        },
+        error: function(xhr) {
+            alert("Erreur lors de l'imputation du temps.");
+            console.error(xhr.responseText);
+        }
+    });
+});
+// Charger les sprints dans le menu déroulant de la modale d'édition
+function loadEditSprintDropdown(selectedSprintId) {
+    $.get(API_SPRINTS, function(sprints) {
+        let options = '<option value="">Aucun (Backlog)</option>';
+        sprints.forEach(s => {
+            let selected = (s.id === selectedSprintId) ? 'selected' : '';
+            options += `<option value="${s.id}" ${selected}>${escapeHtml(s.name)}</option>`;
+        });
+        $('#editTaskSprint').html(options);
+    });
+}
+
+// Ouvrir la modale d'édition et charger les données de la tâche
+$(document).on('click', '.btn-open-edit-modal', function() {
+    let taskId = $(this).data('id');
+
+    $.get(`${API_TASKS}/${taskId}`, function(task) {
+        $('#editTaskId').val(task.id);
+        $('#editTaskClient').val(task.client);
+        $('#editTaskDescription').val(task.description);
+        $('#editTaskAssigneeId').val(task.assigneeId);
+        $('#editTaskEstimatedHours').val(task.estimatedHours);
+        $('#editTaskPriority').val(task.priority);
+        $('#editTaskDueDate').val(task.dueDate ? task.dueDate.split('T')[0] : '');
+
+        loadEditSprintDropdown(task.sprintId);
+
+        let modal = new bootstrap.Modal(document.getElementById('editTaskModal'));
+        modal.show();
+    }).fail(function() {
+        alert("Impossible de charger les détails de la tâche.");
+    });
+});
+
+// Soumission du formulaire de mise à jour complète
+$('#formEditTask').submit(function(e) {
+    e.preventDefault();
+
+    let taskId = $('#editTaskId').val();
+    let sprintVal = $('#editTaskSprint').val();
+
+    let taskData = {
+        client: $('#editTaskClient').val(),
+        description: $('#editTaskDescription').val(),
+        assigneeId: parseInt($('#editTaskAssigneeId').val()),
+        sprintId: sprintVal ? parseInt(sprintVal) : null,
+        estimatedHours: parseFloat($('#editTaskEstimatedHours').val()),
+        priority: parseInt($('#editTaskPriority').val()),
+        dueDate: $('#editTaskDueDate').val() ? $('#editTaskDueDate').val() + 'T00:00:00' : new Date().toISOString()
+    };
+
+    $.ajax({
+        url: `${API_TASKS}/${taskId}`,
+        type: 'PUT',
+        contentType: 'application/json',
+        data: JSON.stringify(taskData),
+        success: function() {
+            $('#editTaskModal').modal('hide');
+            loadTasks();
+            alert('Tâche mise à jour avec succès !');
+        },
+        error: function(xhr) {
+            alert("Erreur lors de la mise à jour de la tâche.");
+            console.error(xhr.responseText);
+        }
+    });
+});
+    </script>
+</body>
+</html>
