@@ -1,32 +1,52 @@
 using System;
+using System.ComponentModel.DataAnnotations;
 using DevTeamTaskManager.Api.Enums;
 
 namespace DevTeamTaskManager.Api.DTOs
 {
     public class CreateTaskDto
     {
+        [Required]
+        [StringLength(200, MinimumLength = 1)]
         public string Client { get; set; } = string.Empty;
+
+        [Required]
+        [StringLength(2000, MinimumLength = 1)]
         public string Description { get; set; } = string.Empty;
+
+        [Range(1, int.MaxValue)]
         public int AssigneeId { get; set; }
+
+        [Range(typeof(decimal), "0.1", "1000")]
         public decimal EstimatedHours { get; set; }
+
+        [Required]
         public DateTime DueDate { get; set; }
+
+        [EnumDataType(typeof(Priority))]
         public Priority Priority { get; set; }
+
+        [Range(1, int.MaxValue)]
         public int? SprintId { get; set; }
     }
 
     public class UpdateTaskDto : CreateTaskDto
     {
-        public Status Status { get; set; }
+        [EnumDataType(typeof(Status))]
+        public Status? Status { get; set; }
     }
 
     public class InlineUpdateTaskDto
     {
+        [Range(typeof(decimal), "0.1", "1000")]
         public decimal? EstimatedHours { get; set; }
+
         public DateTime? DueDate { get; set; }
     }
 
     public class UpdateTaskStatusDto
     {
+        [EnumDataType(typeof(Status))]
         public Status Status { get; set; }
     }
 

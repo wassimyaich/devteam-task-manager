@@ -12,12 +12,15 @@
     <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
     <style>
         body { background-color: #f8f9fa; }
-        .kanban-col { background: #e9ecef; border-radius: 8px; min-height: 450px; padding: 15px; }
+        .kanban-col { background: #e9ecef; border-radius: 8px; min-height: 450px; padding: 15px;display: flex;flex-direction: column; }
         .task-card { background: white; border-radius: 6px; padding: 12px; margin-bottom: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .task-card { background: white; border-radius: 6px; padding: 12px; margin-bottom: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); cursor: grab; }
 .task-card:active { cursor: grabbing; }
 .task-card-placeholder { background: #e2e8f0; border: 2px dashed #cbd5e1; border-radius: 6px; height: 100px; margin-bottom: 12px; }
-    
+    .kanban-col > div[id^="tasks-"] {
+    flex-grow: 1;
+    min-height: 380px;         /* Garantit une large zone de drop même vide */
+}
     </style>
 </head>
 <body>
@@ -294,490 +297,1305 @@
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
-    <script>
-        const API_TASKS = '/api/tasks';
-        const API_SPRINTS = '/api/sprints';
-        const API_DEVELOPERS = '/api/developers';
+  
 
-        // Fonction utilitaire de sécurisation anti-XSS
-        function escapeHtml(text) {
-            if (!text) return '';
-            return $('<div>').text(text).html();
+
+<script>
+"use strict";
+
+// =====================================================
+// 1. CONFIGURATION DES API
+// =====================================================
+
+const API_TASKS = '/api/tasks';
+const API_SPRINTS = '/api/sprints';
+const API_DEVELOPERS = '/api/developers';
+const API_TIME_ENTRIES = '/api/timeentries';
+
+
+// =====================================================
+// 2. UTILITAIRES ET SÉCURITÉ
+// =====================================================
+
+// Protection XSS : compatible avec les chaînes, nombres,
+// valeurs null et undefined.
+function escapeHtml(value) {
+    if (value === null || value === undefined) {
+        return '';
+    }
+
+    return String(value).replace(/[&<>"']/g, function (char) {
+        const entities = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        };
+
+        return entities[char];
+    });
+}
+
+// Date locale au format YYYY-MM-DD.
+// Évite le décalage UTC lié à toISOString().
+function getLocalDateString(date = new Date()) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+}
+
+// Conversion d'une date API vers un input type="date".
+function formatDateForInput(date) {
+    if (!date) {
+        return '';
+    }
+
+    return String(date).split('T')[0];
+}
+
+// Conversion d'une valeur en entier positif.
+function parsePositiveId(value) {
+    const id = Number(value);
+
+    return Number.isInteger(id) && id > 0 ? id : null;
+}
+
+// Gestion centralisée des erreurs API.
+// Compatible avec les réponses ProblemDetails d'ASP.NET Core.
+function handleApiError(xhr, defaultMessage) {
+    let message = defaultMessage;
+
+    if (xhr && xhr.responseJSON) {
+        const response = xhr.responseJSON;
+
+        if (response.title) {
+            message = response.title;
+        } else if (response.message) {
+            message = response.message;
         }
 
-        function loadTasks() {
-            let client = $('#filterClient').val();
-            let status = $('#filterStatus').val();
-            let priority = $('#filterPriority').val();
+        if (response.errors) {
+            const details = Object.values(response.errors)
+                .flat()
+                .filter(Boolean)
+                .join(' ');
 
-            let url = `${API_TASKS}?`;
-            if (client) url += `client=${encodeURIComponent(client)}&`;
-            if (status !== '') url += `status=${status}&`;
-            if (priority !== '') url += `priority=${priority}&`;
+            if (details) {
+                message += ' - ' + details;
+            }
+        }
+    }
 
-            $.get(url, function(tasks) {
-                $('#tasks-todo').empty();
-                $('#tasks-inprogress').empty();
-                $('#tasks-done').empty();
+    alert(message);
+}
 
-                tasks.forEach(t => {
-                    let priorityBadges = {
-                        1: '<span class="badge bg-secondary">Basse</span>',
-                        2: '<span class="badge bg-info">Moyenne</span>',
-                        3: '<span class="badge bg-warning text-dark">Haute</span>',
-                        4: '<span class="badge bg-danger">Critique</span>'
-                    };
-                    let priorityBadge = priorityBadges[t.priority] || '';
-                    
-                    let safeClient = escapeHtml(t.client);
-                    let safeDescription = escapeHtml(t.description);
-                    let safeAssignee = escapeHtml(t.assigneeName || 'Non assigné');
-// Dans la génération de la carte dans loadTasks() :
-// Dans la génération de la carte dans loadTasks() :
-let formattedDate = t.dueDate ? t.dueDate.split('T')[0] : '';
-let sprintIdVal = t.sprintId ? t.sprintId : '';
+// Ajoute une date à minuit sans convertir la date en UTC.
+function dateAtMidnight(value) {
+    return value ? `${value}T00:00:00` : null;
+}
 
-let card = `
-    <div class="task-card" data-id="${t.id}" data-client="${safeClient}">
-        <div class="d-flex justify-content-between align-items-center mb-1">
-            <strong class="text-dark">${safeClient}</strong>${priorityBadge}
-        </div>
-        <p class="mb-2 text-muted small">${safeDescription}</p>
-        <div class="d-flex justify-content-between align-items-center text-xs text-muted mb-2">
-            <span><i class="fa-solid fa-user me-1"></i>${safeAssignee}</span>
-            <span><i class="fa-solid fa-clock me-1"></i><input type="number" step="0.5" class="form-control form-control-sm d-inline-block w-25 inline-est" data-id="${t.id}" value="${t.estimatedHours}">h</span>
-        </div>
-        <div class="d-flex justify-content-between align-items-center text-xs text-muted mb-2">
-            <span><i class="fa-solid fa-calendar-days me-1"></i>Échéance :</span>
-            <input type="date" class="form-control form-control-sm d-inline-block w-50 inline-duedate" data-id="${t.id}" value="${formattedDate}">
-        </div>
-        <div class="mt-2 d-flex justify-content-between align-items-center">
-            <div class="d-flex gap-1">
-                <button class="btn btn-sm btn-outline-info btn-open-time-modal" data-id="${t.id}" data-client="${safeClient}">
-                    <i class="fa-solid fa-stopwatch"></i>
-                </button>
-                <button class="btn btn-sm btn-outline-warning btn-open-edit-modal" data-id="${t.id}">
-                    <i class="fa-solid fa-pen-to-square"></i>
-                </button>
-            </div>
-            <div class="d-flex gap-1">
-                ${t.status !== 1 ? '<button class="btn btn-sm btn-outline-secondary btn-status" data-id="'+t.id+'" data-status="1">À faire</button>' : ''}
-                ${t.status !== 2 ? '<button class="btn btn-sm btn-outline-primary btn-status" data-id="'+t.id+'" data-status="2">En cours</button>' : ''}
-                ${t.status !== 3 ? '<button class="btn btn-sm btn-outline-success btn-status" data-id="'+t.id+'" data-status="3">Terminé</button>' : ''}
-            </div>
-        </div>
-    </div>
-`;
-                    if (t.status === 1) $('#tasks-todo').append(card);
-                    else if (t.status === 2) $('#tasks-inprogress').append(card);
-                    else if (t.status === 3) $('#tasks-done').append(card);
-                });
-            }).fail(function() {
-                console.error("Erreur lors du chargement des tâches.");
-            });
+// Initialise une modale Bootstrap en utilisant l'instance
+// existante si elle est déjà créée.
+function showModal(elementId) {
+    const element = document.getElementById(elementId);
+
+    if (!element) {
+        console.error(`Modale introuvable : ${elementId}`);
+        return;
+    }
+
+    bootstrap.Modal.getOrCreateInstance(element).show();
+}
+
+function hideModal(elementId) {
+    const element = document.getElementById(elementId);
+
+    if (element) {
+        bootstrap.Modal.getOrCreateInstance(element).hide();
+    }
+}
+
+
+// =====================================================
+// 3. CHARGEMENT ET AFFICHAGE DES TÂCHES
+// =====================================================
+
+function loadTasks() {
+    const client = $('#filterClient').val() || '';
+    const status = $('#filterStatus').val();
+    const priority = $('#filterPriority').val();
+
+    const params = {};
+
+    if (client.trim()) {
+        params.client = client.trim();
+    }
+
+    if (status !== undefined && status !== '') {
+        params.status = status;
+    }
+
+    if (priority !== undefined && priority !== '') {
+        params.priority = priority;
+    }
+
+    $.get(API_TASKS, params)
+        .done(function (tasks) {
+            if (!Array.isArray(tasks)) {
+                console.error('La réponse API des tâches est invalide.');
+                return;
+            }
+
+            renderKanban(tasks);
+        })
+        .fail(function (xhr) {
+            handleApiError(xhr, 'Impossible de charger les tâches.');
+        });
+}
+
+
+function renderKanban(tasks) {
+    $('#tasks-todo').empty();
+    $('#tasks-inprogress').empty();
+    $('#tasks-done').empty();
+
+    tasks.forEach(function (task) {
+        const priorityBadges = {
+            1: '<span class="badge bg-secondary">Basse</span>',
+            2: '<span class="badge bg-info">Moyenne</span>',
+            3: '<span class="badge bg-warning text-dark">Haute</span>',
+            4: '<span class="badge bg-danger">Critique</span>'
+        };
+
+        const priorityBadge = priorityBadges[task.priority] || '';
+
+        const safeClient = escapeHtml(task.client);
+        const safeDescription = escapeHtml(task.description);
+        const safeAssignee = escapeHtml(
+            task.assigneeName || 'Non assigné'
+        );
+
+        const formattedDate = formatDateForInput(task.dueDate);
+
+        const logged = Number(task.loggedHours) || 0;
+        const estimated = Number(task.estimatedHours) || 0;
+
+        const isOverBudget = logged > estimated;
+
+        const timeBadgeClass = isOverBudget
+            ? 'bg-danger'
+            : 'bg-secondary';
+
+        // Statuts conservés depuis le script 1 :
+        // 1 = À faire ; 2 = En cours ; 3 = Terminé.
+        let targetContainer;
+
+        if (task.status === 1) {
+            targetContainer = '#tasks-todo';
+        } else if (task.status === 2) {
+            targetContainer = '#tasks-inprogress';
+        } else if (task.status === 3) {
+            targetContainer = '#tasks-done';
+        } else {
+            console.warn(
+                `Statut inconnu pour la tâche ${task.id}:`,
+                task.status
+            );
+            return;
         }
 
-        function loadSprints() {
-            $.get(API_SPRINTS, function(sprints) {
-                let list = $('#sprintsList').empty();
-                sprints.forEach(s => {
-                    let safeName = escapeHtml(s.name);
-                    list.append(`
-                        <button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center sprint-item" data-id="${s.id}">
-                            ${safeName}
-                            <span class="badge bg-primary rounded-pill">${s.taskCount} tâches</span>
-                        </button>
-                    `);
-                });
-            });
-        }
+        const taskId = Number(task.id);
 
-        function loadTaskDropdowns() {
-            $.get(API_SPRINTS, function(sprints) {
-                let options = '<option value="">Aucun (Backlog)</option>';
-                sprints.forEach(s => {
-                    options += `<option value="${s.id}">${escapeHtml(s.name)}</option>`;
-                });
-                $('#newTaskSprint').html(options);
-            });
-        }
+        const card = `
+            <div class="task-card card mb-3 shadow-sm"
+                 data-id="${taskId}"
+                 data-status="${task.status}"
+                 data-client="${safeClient}">
 
-        // Chargement du rapport de sprint
-        $(document).on('click', '.sprint-item', function() {
-            let id = $(this).data('id');
-            $('.sprint-item').removeClass('active');$(this).addClass('active');
+                <div class="card-body p-3">
 
-            $.get(`${API_SPRINTS}/${id}/capacity`, function(report) {
-                let devRows = report.developerAllocations.map(d => `
-                    <tr>
-                        <td>${escapeHtml(d.developerName)}</td>
-                        <td>${d.assignedTasksCount}</td>
-                        <td>${d.estimatedHours}h</td>
-                        <td>${d.loggedHours}h</td>
-                        <td><div class="progress"><div class="progress-bar" style="width: ${d.allocationPercentage}%">${d.allocationPercentage}%</div></div></td>
-                    </tr>
-                `).join('');
+                    <div class="d-flex justify-content-between
+                                align-items-center mb-2">
 
-                let budgetAlert = report.isOverBudget
-                    ? `<div class="alert alert-danger"><i class="fa-solid fa-triangle-exclamation me-2"></i><strong>Attention :</strong> Le temps total passé dépasse l'estimation initiale !</div>`
-                    : `<div class="alert alert-success"><i class="fa-solid fa-check-circle me-2"></i>Le sprint est dans les limites du budget initial.</div>`;
+                        <strong class="text-dark">
+                            ${safeClient}
+                        </strong>
 
-                let safeSprintName = escapeHtml(report.sprintName);
-
-                $('#sprintReportContainer').html(`
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5 class="card-title mb-0">Rapport : ${safeSprintName}</h5>
-                        <button class="btn btn-sm btn-outline-danger btn-close-sprint" data-id="${report.sprintId}"><i class="fa-solid fa-lock me-1"></i>Clôturer le Sprint</button>
+                        ${priorityBadge}
                     </div>
-                    ${budgetAlert}
-                    <div class="row text-center mb-4">
-                        <div class="col-md-4"><div class="p-3 bg-light rounded"><h6>Total Estimé</h6><h4>${report.totalEstimatedHours}h</h4></div></div>
-                        <div class="col-md-4"><div class="p-3 bg-light rounded"><h6>Total Passé</h6><h4>${report.totalLoggedHours}h</h4></div></div>
-                        <div class="col-md-4"><div class="p-3 bg-light rounded"><h6>Total Tâches</h6><h4>${report.totalTasks}</h4></div></div>
+
+                    <p class="mb-2 text-muted small">
+                        ${safeDescription}
+                    </p>
+
+                    <div class="d-flex justify-content-between
+                                align-items-center text-muted small mb-2">
+
+                        <span>
+                            <i class="fa-solid fa-user me-1"></i>
+                            ${safeAssignee}
+                        </span>
+
+                        <span class="badge ${timeBadgeClass}"
+                              title="Temps passé / estimé">
+                            <i class="fa-solid fa-clock me-1"></i>
+                            ${logged}h / ${estimated}h
+                        </span>
                     </div>
-                    <h6>Taux d'affectation par développeur :</h6>
-                    <table class="table table-bordered table-sm align-middle">
-                        <thead><tr><th>Développeur</th><th>Tâches</th><th>Estimé</th><th>Passé</th><th>Affectation</th></tr></thead>
-                        <tbody>${devRows}</tbody>
-                    </table>
+
+                    <div class="mb-2">
+                        <label class="small text-muted">
+                            Temps estimé (heures)
+                        </label>
+
+                        <input
+                            type="number"
+                            min="0"
+                            step="0.5"
+                            class="form-control form-control-sm inline-est"
+                            data-id="${taskId}"
+                            value="${estimated}">
+                    </div>
+
+                    <div class="mb-2">
+                        <label class="small text-muted">
+                            <i class="fa-solid fa-calendar-days me-1"></i>
+                            Échéance
+                        </label>
+
+                        <input
+                            type="date"
+                            class="form-control form-control-sm inline-duedate"
+                            data-id="${taskId}"
+                            value="${escapeHtml(formattedDate)}">
+                    </div>
+
+                    <div class="d-flex justify-content-between
+                                align-items-center mt-3 pt-2 border-top">
+
+                        <div class="d-flex gap-1">
+
+                            <button
+                                type="button"
+                                class="btn btn-sm btn-outline-info btn-open-time-modal"
+                                data-id="${taskId}"
+                                data-client="${safeClient}"
+                                title="Imputer du temps">
+
+                                <i class="fa-solid fa-stopwatch"></i>
+                            </button>
+
+                            <button
+                                type="button"
+                                class="btn btn-sm btn-outline-warning btn-open-edit-modal"
+                                data-id="${taskId}"
+                                title="Modifier la tâche">
+
+                                <i class="fa-solid fa-pen-to-square"></i>
+                            </button>
+
+                            <button
+                                type="button"
+                                class="btn btn-sm btn-outline-danger btn-delete-task"
+                                data-id="${taskId}"
+                                title="Supprimer la tâche">
+
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+
+                        </div>
+
+                        <div class="d-flex flex-wrap gap-1">
+
+                            ${task.status !== 1 ? `
+                                <button
+                                    type="button"
+                                    class="btn btn-sm btn-outline-secondary btn-status"
+                                    data-id="${taskId}"
+                                    data-status="1">
+                                    À faire
+                                </button>
+                            ` : ''}
+
+                            ${task.status !== 2 ? `
+                                <button
+                                    type="button"
+                                    class="btn btn-sm btn-outline-primary btn-status"
+                                    data-id="${taskId}"
+                                    data-status="2">
+                                    En cours
+                                </button>
+                            ` : ''}
+
+                            ${task.status !== 3 ? `
+                                <button
+                                    type="button"
+                                    class="btn btn-sm btn-outline-success btn-status"
+                                    data-id="${taskId}"
+                                    data-status="3">
+                                    Terminé
+                                </button>
+                            ` : ''}
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        $(targetContainer).append(card);
+    });
+
+    initDragAndDrop();
+}
+
+
+// =====================================================
+// 4. SPRINTS ET LISTES DÉROULANTES
+// =====================================================
+
+function loadSprints() {
+    $.get(API_SPRINTS)
+        .done(function (sprints) {
+            const list = $('#sprintsList').empty();
+
+            sprints.forEach(function (sprint) {
+                list.append(`
+                    <button
+                        type="button"
+                        class="list-group-item list-group-item-action
+                               d-flex justify-content-between
+                               align-items-center sprint-item"
+                        data-id="${Number(sprint.id)}">
+
+                        ${escapeHtml(sprint.name)}
+
+                        <span class="badge bg-primary rounded-pill">
+                            ${Number(sprint.taskCount) || 0} tâches
+                        </span>
+                    </button>
                 `);
             });
-        });
 
-        // Clôture d'un sprint
-        $(document).on('click', '.btn-close-sprint', function() {
-            let id = $(this).data('id');
-            if (confirm("Voulez-vous vraiment clôturer ce sprint ?")) {
-                $.ajax({
-                    url: `${API_SPRINTS}/${id}/close`,
-                    type: 'PATCH',
-                    success: function() { 
-                        alert('Sprint clôturé avec succès !'); 
-                        loadSprints(); 
-                    },
-                    error: function() {
-                        alert('Erreur lors de la clôture du sprint.');
-                    }
-                });
-            }
+            loadTaskDropdowns();
+            loadEditSprintDropdown(
+                $('#editTaskSprint').val()
+            );
+        })
+        .fail(function (xhr) {
+            handleApiError(xhr, 'Erreur lors du chargement des sprints.');
         });
+}
 
-        // Création de sprint
-        $('#formCreateSprint').submit(function(e) {
-            e.preventDefault();
-            let data = {
-                name: $('#sprintName').val(),
-                startDate: $('#sprintStart').val() + 'T00:00:00',
-                endDate: $('#sprintEnd').val() + 'T00:00:00',
-                status: 1
-            };
-            $.ajax({
-                url: API_SPRINTS,
-                type: 'POST',
-                contentType: 'application/json',
-                data: JSON.stringify(data),
-                success: function() {
-                    $('#formCreateSprint')[0].reset();
-                    loadSprints();
-                    alert('Sprint créé avec succès !');
-                },
-                error: function() {
-                    alert('Erreur lors de la création du sprint.');
-                }
+
+function loadTaskDropdowns() {
+    $.get(API_SPRINTS)
+        .done(function (sprints) {
+            let options = '<option value="">Aucun (Backlog)</option>';
+
+            sprints.forEach(function (sprint) {
+                options += `
+                    <option value="${Number(sprint.id)}">
+                        ${escapeHtml(sprint.name)}
+                    </option>
+                `;
             });
-        });
 
-        // Mise à jour en ligne des heures estimées
-        $(document).on('change', '.inline-est', function() {
-            let id = $(this).data('id');
-            let val = parseFloat($(this).val());
-            if (isNaN(val) || val < 0) {
-                alert("Veuillez entrer une valeur numérique valide (>= 0).");
-                loadTasks();
-                return;
-            }
-            $.ajax({
-                url: `${API_TASKS}/${id}/inline`,
-                type: 'PATCH',
-                contentType: 'application/json',
-                data: JSON.stringify({ estimatedHours: val }),
-                error: function() {
-                    alert("Erreur lors de la mise à jour de l'estimation.");
-                    loadTasks();
-                }
+            $('#newTaskSprint').html(options);
+        })
+        .fail(function (xhr) {
+            handleApiError(
+                xhr,
+                'Impossible de charger les sprints pour la tâche.'
+            );
+        });
+}
+
+
+function loadEditSprintDropdown(selectedSprintId) {
+    $.get(API_SPRINTS)
+        .done(function (sprints) {
+            let options = '<option value="">Aucun (Backlog)</option>';
+
+            sprints.forEach(function (sprint) {
+                const selected =
+                    selectedSprintId != null &&
+                    String(sprint.id) === String(selectedSprintId)
+                        ? 'selected'
+                        : '';
+
+                options += `
+                    <option value="${Number(sprint.id)}" ${selected}>
+                        ${escapeHtml(sprint.name)}
+                    </option>
+                `;
             });
+
+            $('#editTaskSprint').html(options);
+        })
+        .fail(function (xhr) {
+            handleApiError(
+                xhr,
+                'Impossible de charger les sprints pour la modification.'
+            );
         });
+}
 
-        // Changement de statut d'une tâche (Kanban)
-        $(document).on('click', '.btn-status', function() {
-            let id = $(this).data('id');
-            let newStatus = parseInt($(this).data('status'));
 
-            $.ajax({
-                url: `${API_TASKS}/${id}/status`,
-                type: 'PATCH',
-                contentType: 'application/json',
-                data: JSON.stringify({ status: newStatus }),
-                success: function() { loadTasks(); },
-                error: function() { alert("Erreur lors du changement de statut."); }
+function loadDevelopersDropdown() {
+    $.get(API_DEVELOPERS)
+        .done(function (developers) {
+            let options = `
+                <option value="">
+                    Sélectionner un développeur...
+                </option>
+            `;
+
+            developers.forEach(function (developer) {
+                options += `
+                    <option value="${Number(developer.id)}">
+                        ${escapeHtml(developer.name)}
+                    </option>
+                `;
             });
+
+            $('#timeEntryDevId').html(options);
+        })
+        .fail(function (xhr) {
+            handleApiError(
+                xhr,
+                'Impossible de charger les développeurs.'
+            );
         });
+}
 
-        // Recherche dynamique des développeurs (Autocomplétion)
-        let debounceTimer;
-        $('#devSearchInput').on('input', function() {
-            clearTimeout(debounceTimer);
-            let query = $(this).val();
 
-            if (query.length < 2) {
-                $('#devSuggestions').hide();
-                return;
-            }
+// =====================================================
+// 5. RAPPORT DE CAPACITÉ D'UN SPRINT
+// =====================================================
 
-            debounceTimer = setTimeout(function() {
-                $.get(`${API_DEVELOPERS}/search?term=${encodeURIComponent(query)}`, function(devs) {
-                    let html = '';
-                    if (devs.length === 0) {
-                        html = '<div class="list-group-item text-muted">Aucun développeur trouvé</div>';
-                    } else {
-                        devs.forEach(d => {
-                            html += `<button type="button" class="list-group-item list-group-item-action select-dev-item" data-id="${d.id}" data-name="${escapeHtml(d.name)}">
-                                        ${escapeHtml(d.name)} (${escapeHtml(d.email || 'Pas d\'email')})
-                                     </button>`;
-                        });
-                    }
-                    $('#devSuggestions').html(html).show();
-                });
-            }, 300);
+$(document).on('click', '.sprint-item', function () {
+    const id = $(this).data('id');
+
+    $('.sprint-item').removeClass('active');
+    $(this).addClass('active');
+
+    $.get(`${API_SPRINTS}/${id}/capacity`)
+        .done(function (report) {
+            const allocations = report.developerAllocations || [];
+
+            const devRows = allocations.map(function (developer) {
+                const percentage = Math.max(
+                    0,
+                    Math.min(
+                        100,
+                        Number(developer.allocationPercentage) || 0
+                    )
+                );
+
+                return `
+                    <tr>
+                        <td>${escapeHtml(developer.developerName)}</td>
+                        <td>${Number(developer.assignedTasksCount) || 0}</td>
+                        <td>${Number(developer.estimatedHours) || 0}h</td>
+                        <td>${Number(developer.loggedHours) || 0}h</td>
+                        <td>
+                            <div class="progress">
+                                <div
+                                    class="progress-bar"
+                                    role="progressbar"
+                                    style="width: ${percentage}%"
+                                    aria-valuenow="${percentage}"
+                                    aria-valuemin="0"
+                                    aria-valuemax="100">
+                                    ${percentage}%
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            const budgetAlert = report.isOverBudget
+                ? `
+                    <div class="alert alert-danger">
+                        <i class="fa-solid fa-triangle-exclamation me-2"></i>
+                        <strong>Attention :</strong>
+                        Le temps total passé dépasse l'estimation initiale !
+                    </div>
+                `
+                : `
+                    <div class="alert alert-success">
+                        <i class="fa-solid fa-check-circle me-2"></i>
+                        Le sprint est dans les limites du budget initial.
+                    </div>
+                `;
+
+            $('#sprintReportContainer').html(`
+                <div class="d-flex justify-content-between
+                            align-items-center mb-3">
+
+                    <h5 class="card-title mb-0">
+                        Rapport : ${escapeHtml(report.sprintName)}
+                    </h5>
+
+                    <button
+                        type="button"
+                        class="btn btn-sm btn-outline-danger btn-close-sprint"
+                        data-id="${Number(report.sprintId)}">
+
+                        <i class="fa-solid fa-lock me-1"></i>
+                        Clôturer le Sprint
+                    </button>
+                </div>
+
+                ${budgetAlert}
+
+                <div class="row text-center mb-4">
+
+                    <div class="col-md-4">
+                        <div class="p-3 bg-light rounded">
+                            <h6>Total estimé</h6>
+                            <h4>${Number(report.totalEstimatedHours) || 0}h</h4>
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="p-3 bg-light rounded">
+                            <h6>Total passé</h6>
+                            <h4>${Number(report.totalLoggedHours) || 0}h</h4>
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="p-3 bg-light rounded">
+                            <h6>Total tâches</h6>
+                            <h4>${Number(report.totalTasks) || 0}</h4>
+                        </div>
+                    </div>
+
+                </div>
+
+                <h6>Taux d'affectation par développeur :</h6>
+
+                <div class="table-responsive">
+                    <table class="table table-bordered table-sm align-middle">
+                        <thead>
+                            <tr>
+                                <th>Développeur</th>
+                                <th>Tâches</th>
+                                <th>Estimé</th>
+                                <th>Passé</th>
+                                <th>Affectation</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            ${devRows || `
+                                <tr>
+                                    <td colspan="5" class="text-center">
+                                        Aucune affectation pour ce sprint.
+                                    </td>
+                                </tr>
+                            `}
+                        </tbody>
+                    </table>
+                </div>
+            `);
+        })
+        .fail(function (xhr) {
+            handleApiError(
+                xhr,
+                'Impossible de charger le rapport du sprint.'
+            );
         });
-
-        // Sélection d'un développeur dans la liste d'autocomplétion
-        $(document).on('click', '.select-dev-item', function() {
-            let id = $(this).data('id');
-            let name = $(this).data('name');$('#devSearchInput').val(name);
-            $('#selectedDeveloperId').val(id); // Stocke l'ID cible
-            $('#devSuggestions').hide();
-        });
-
-        // Soumission du formulaire de création de tâche
-        $('#formCreateTask').submit(function(e) {
-            e.preventDefault();
-
-            let sprintVal = $('#newTaskSprint').val();
-            let devId = $('#selectedDeveloperId').val();
-
-            let taskData = {
-                client: $('#newTaskClient').val(),
-                description: $('#newTaskDescription').val(),
-                assigneeId: devId ? parseInt(devId) : null, // Récupération propre de l'ID caché
-                sprintId: sprintVal ? parseInt(sprintVal) : null,
-                estimatedHours: parseFloat($('#newTaskEstimatedHours').val()),
-                priority: parseInt($('#newTaskPriority').val()),
-                dueDate: $('#newTaskDueDate').val() ? $('#newTaskDueDate').val() + 'T00:00:00' : new Date().toISOString()
-            };
-
-            $.ajax({
-                url: API_TASKS,
-                type: 'POST',
-                contentType: 'application/json',
-                data: JSON.stringify(taskData),
-                success: function() {
-                    $('#createTaskModal').modal('hide');
-                    $('#formCreateTask')[0].reset();
-                    $('#selectedDeveloperId').val('');
-                    $('#devSearchInput').val('');
-                    loadTasks();
-                    loadSprints();
-                    alert('Tâche créée avec succès !');
-                },
-                error: function(xhr) {
-                    alert('Erreur lors de la création de la tâche.');
-                    console.error("Détails de l'erreur :", xhr.responseText);
-                }
-            });
-        });
-
-        // Initialisation globale au chargement de la page
-     $(document).ready(function() {
-    loadTasks();
-    loadSprints();
-    loadTaskDropdowns();
-
-    $('#filterClient').on('input', loadTasks);
-    $('#filterStatus, #filterPriority').on('change', loadTasks);
-
-    // Initialisation du Drag & Drop jQuery UI sur les colonnes Kanban
-    $('#tasks-todo, #tasks-inprogress, #tasks-done').sortable({
-        connectWith: ".kanban-col div[id^='tasks-']", // Permet de passer les cartes d'une colonne à l'autre
-        placeholder: "task-card-placeholder",
-        update: function(event, ui) {
-            // S'assurer que l'événement ne se déclenche que sur la liste de destination pour éviter les doublons d'appels AJAX
-            if (this === ui.item.parent()[0]) {
-                let taskId = ui.item.data('id');
-                let parentId = ui.item.parent().attr('id');
-                
-                let newStatus = 1; // Par défaut À faire
-                if (parentId === 'tasks-inprogress') newStatus = 2;
-                else if (parentId === 'tasks-done') newStatus = 3;
-
-                // Appel AJAX pour mettre à jour le statut en base de données
-                $.ajax({
-                    url: `${API_TASKS}/${taskId}/status`,
-                    type: 'PATCH',
-                    contentType: 'application/json',
-                    data: JSON.stringify({ status: newStatus }),
-                    error: function() {
-                        alert("Erreur lors du déplacement de la tâche.");
-                        loadTasks(); // Recharge en cas d'échec pour remettre la carte à sa place
-                    }
-                });
-            }
-        }
-    }).disableSelection();
 });
-     
-        // Mise à jour en ligne de la date d'échéance
-$(document).on('change', '.inline-duedate', function() {
-    let id = $(this).data('id');
-    let val = $(this).val();
-    if (!val) return;
+
+
+// =====================================================
+// 6. CLÔTURE ET CRÉATION DE SPRINT
+// =====================================================
+
+$(document).on('click', '.btn-close-sprint', function () {
+    const id = $(this).data('id');
+
+    if (!confirm('Voulez-vous vraiment clôturer ce sprint ?')) {
+        return;
+    }
+
+    $.ajax({
+        url: `${API_SPRINTS}/${id}/close`,
+        type: 'PATCH'
+    })
+    .done(function () {
+        alert('Sprint clôturé avec succès !');
+
+        loadSprints();
+
+        if ($('.sprint-item.active').length) {
+            $('#sprintReportContainer').empty();
+        }
+    })
+    .fail(function (xhr) {
+        handleApiError(xhr, 'Erreur lors de la clôture du sprint.');
+    });
+});
+
+
+$('#formCreateSprint').on('submit', function (e) {
+    e.preventDefault();
+
+    const startDate = $('#sprintStart').val();
+    const endDate = $('#sprintEnd').val();
+
+    if (!startDate || !endDate) {
+        alert('Veuillez renseigner les dates du sprint.');
+        return;
+    }
+
+    if (endDate < startDate) {
+        alert('La date de fin doit être postérieure à la date de début.');
+        return;
+    }
+
+    const data = {
+        name: $('#sprintName').val().trim(),
+        startDate: dateAtMidnight(startDate),
+        endDate: dateAtMidnight(endDate),
+        status: 1
+    };
+
+    if (!data.name) {
+        alert('Veuillez saisir le nom du sprint.');
+        return;
+    }
+
+    $.ajax({
+        url: API_SPRINTS,
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(data)
+    })
+    .done(function () {
+        $('#formCreateSprint')[0].reset();
+
+        loadSprints();
+
+        alert('Sprint créé avec succès !');
+    })
+    .fail(function (xhr) {
+        handleApiError(xhr, 'Erreur lors de la création du sprint.');
+    });
+});
+
+
+// =====================================================
+// 7. MISE À JOUR EN LIGNE DES HEURES ESTIMÉES
+// =====================================================
+
+$(document).on('change', '.inline-est', function () {
+    const $input = $(this);
+    const id = $input.data('id');
+    const value = $input.val();
+    const hours = Number(value);
+
+    if (
+        value.trim() === '' ||
+        !Number.isFinite(hours) ||
+        hours < 0
+    ) {
+        alert('Veuillez entrer une valeur numérique valide (>= 0).');
+        loadTasks();
+        return;
+    }
 
     $.ajax({
         url: `${API_TASKS}/${id}/inline`,
         type: 'PATCH',
         contentType: 'application/json',
-        data: JSON.stringify({ dueDate: val + 'T00:00:00' }),
-        error: function() {
-            alert("Erreur lors de la mise à jour de l'échéance.");
-            loadTasks();
+        data: JSON.stringify({
+            estimatedHours: hours
+        })
+    })
+    .done(function () {
+        // Recharge les valeurs et le calcul temps passé / estimé.
+        loadTasks();
+    })
+    .fail(function (xhr) {
+        handleApiError(
+            xhr,
+            "Erreur lors de la mise à jour de l'estimation."
+        );
+        loadTasks();
+    });
+});
+
+
+// =====================================================
+// 8. MISE À JOUR EN LIGNE DE LA DATE D'ÉCHÉANCE
+// =====================================================
+
+$(document).on('change', '.inline-duedate', function () {
+    const id = $(this).data('id');
+    const value = $(this).val();
+
+    if (!value) {
+        return;
+    }
+
+    $.ajax({
+        url: `${API_TASKS}/${id}/inline`,
+        type: 'PATCH',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            dueDate: dateAtMidnight(value)
+        })
+    })
+    .done(function () {
+        // La date est déjà visible : aucun rechargement nécessaire.
+    })
+    .fail(function (xhr) {
+        handleApiError(
+            xhr,
+            "Erreur lors de la mise à jour de l'échéance."
+        );
+        loadTasks();
+    });
+});
+
+
+// =====================================================
+// 9. CHANGEMENT DE STATUT PAR BOUTON
+// =====================================================
+
+$(document).on('click', '.btn-status', function () {
+    const id = $(this).data('id');
+    const newStatus = Number($(this).data('status'));
+
+    if (![1, 2, 3].includes(newStatus)) {
+        alert('Statut invalide.');
+        return;
+    }
+
+    $.ajax({
+        url: `${API_TASKS}/${id}/status`,
+        type: 'PATCH',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            status: newStatus
+        })
+    })
+    .done(function () {
+        loadTasks();
+    })
+    .fail(function (xhr) {
+        handleApiError(xhr, 'Erreur lors du changement de statut.');
+    });
+});
+
+
+// =====================================================
+// 10. DRAG & DROP DU KANBAN
+// =====================================================
+
+function initDragAndDrop() {
+    const $columns = $(
+        '#tasks-todo, #tasks-inprogress, #tasks-done'
+    );
+
+    // Détruire les anciennes instances avant réinitialisation.
+    $columns.each(function () {
+        const $column = $(this);
+
+        if ($column.hasClass('ui-sortable')) {
+            $column.sortable('destroy');
         }
     });
-});
-const API_TIME_ENTRIES = '/api/timeentries';
 
-// Charger la liste des développeurs dans le select de la modale temps
-function loadDevelopersDropdown() {
-    $.get(API_DEVELOPERS, function(devs) {
-        let options = '<option value="">Sélectionner un développeur...</option>';
-        devs.forEach(d => {
-            options += `<option value="${d.id}">${escapeHtml(d.name)}</option>`;
-        });
-        $('#timeEntryDevId').html(options);
-    });
+    $columns.sortable({
+        connectWith: '#tasks-todo, #tasks-inprogress, #tasks-done',
+        items: '> .task-card',
+        placeholder: 'task-card-placeholder',
+        tolerance: 'pointer',
+        revert: 100,
+
+        update: function (event, ui) {
+            // Le changement de statut n'est envoyé que
+            // depuis la colonne de destination.
+            if (this !== ui.item.parent()[0]) {
+                return;
+            }
+
+            const taskId = ui.item.data('id');
+            const parentId = ui.item.parent().attr('id');
+
+            let newStatus;
+
+            if (parentId === 'tasks-todo') {
+                newStatus = 1;
+            } else if (parentId === 'tasks-inprogress') {
+                newStatus = 2;
+            } else if (parentId === 'tasks-done') {
+                newStatus = 3;
+            } else {
+                loadTasks();
+                return;
+            }
+
+            const oldStatus = Number(ui.item.attr('data-status'));
+
+            if (oldStatus === newStatus) {
+                return;
+            }
+
+            $.ajax({
+                url: `${API_TASKS}/${taskId}/status`,
+                type: 'PATCH',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    status: newStatus
+                })
+            })
+            .done(function () {
+                loadTasks();
+            })
+            .fail(function (xhr) {
+                handleApiError(
+                    xhr,
+                    'Erreur lors du déplacement de la tâche.'
+                );
+
+                loadTasks();
+            });
+        }
+    }).disableSelection();
 }
 
-// Ouvrir la modale de saisie de temps
-$(document).on('click', '.btn-open-time-modal', function() {
-    let taskId = $(this).data('id');
-    let clientName = $(this).data('client');$('#timeEntryTaskId').val(taskId);
-    $('#timeModalClient').text(clientName);
-    
-    // Mettre la date du jour par défaut
-    let today = new Date().toISOString().split('T')[0];
-    $('#timeEntryDate').val(today);
-    $('#timeEntryDuration').val('2');
-    $('#timeEntryNote').val('');
-    
-    loadDevelopersDropdown();
-    
-    let modal = new bootstrap.Modal(document.getElementById('timeEntryModal'));
-    modal.show();
+
+// =====================================================
+// 11. AUTOCOMPLÉTION DES DÉVELOPPEURS
+// =====================================================
+
+let debounceTimer = null;
+
+$('#devSearchInput').on('input', function () {
+    clearTimeout(debounceTimer);
+
+    const query = $(this).val().trim();
+
+    // Une nouvelle recherche invalide la sélection précédente.
+    $('#selectedDeveloperId').val('');
+
+    if (query.length < 2) {
+        $('#devSuggestions').empty().hide();
+        return;
+    }
+
+    debounceTimer = setTimeout(function () {
+        $.get(`${API_DEVELOPERS}/search`, {
+            term: query
+        })
+        .done(function (developers) {
+            let html = '';
+
+            if (!developers || developers.length === 0) {
+                html = `
+                    <div class="list-group-item text-muted">
+                        Aucun développeur trouvé
+                    </div>
+                `;
+            } else {
+                developers.forEach(function (developer) {
+                    html += `
+                        <button
+                            type="button"
+                            class="list-group-item list-group-item-action
+                                   select-dev-item"
+                            data-id="${Number(developer.id)}"
+                            data-name="${escapeHtml(developer.name)}">
+
+                            ${escapeHtml(developer.name)}
+                            (${escapeHtml(developer.email || 'Pas d’email')})
+                        </button>
+                    `;
+                });
+            }
+
+            $('#devSuggestions').html(html).show();
+        })
+        .fail(function (xhr) {
+            handleApiError(
+                xhr,
+                'Erreur lors de la recherche des développeurs.'
+            );
+        });
+    }, 300);
 });
 
-// Soumission du formulaire d'imputation de temps
-$('#formCreateTimeEntry').submit(function(e) {
+
+$(document).on('click', '.select-dev-item', function () {
+    const id = $(this).attr('data-id');
+    const name = $(this).attr('data-name');
+
+    $('#devSearchInput').val(name);
+    $('#selectedDeveloperId').val(id);
+
+    $('#devSuggestions').empty().hide();
+});
+
+
+// =====================================================
+// 12. CRÉATION D'UNE TÂCHE
+// =====================================================
+
+$('#formCreateTask').on('submit', function (e) {
     e.preventDefault();
 
-    let data = {
-        taskId: parseInt($('#timeEntryTaskId').val()),
-        developerId: parseInt($('#timeEntryDevId').val()),
-        workDate: $('#timeEntryDate').val() + 'T00:00:00',
-        durationHours: parseFloat($('#timeEntryDuration').val()),
-        note: $('#timeEntryNote').val()
+    const sprintValue = $('#newTaskSprint').val();
+    const developerId = parsePositiveId(
+        $('#selectedDeveloperId').val()
+    );
+
+    const estimatedValue = $('#newTaskEstimatedHours').val();
+    const estimatedHours = Number(estimatedValue);
+
+    if (!$('#newTaskClient').val().trim()) {
+        alert('Veuillez saisir le nom du client.');
+        return;
+    }
+
+    if (!$('#newTaskDescription').val().trim()) {
+        alert('Veuillez saisir la description de la tâche.');
+        return;
+    }
+
+    if (!developerId) {
+        alert('Veuillez sélectionner un développeur dans la liste.');
+        return;
+    }
+
+    if (
+        estimatedValue.trim() === '' ||
+        !Number.isFinite(estimatedHours) ||
+        estimatedHours < 0
+    ) {
+        alert('Veuillez saisir une estimation valide (>= 0).');
+        return;
+    }
+
+    const dueDateValue = $('#newTaskDueDate').val();
+
+    const taskData = {
+        client: $('#newTaskClient').val().trim(),
+        description: $('#newTaskDescription').val().trim(),
+        assigneeId: developerId,
+        sprintId: sprintValue ? parsePositiveId(sprintValue) : null,
+        estimatedHours: estimatedHours,
+        priority: parseInt($('#newTaskPriority').val(), 10),
+        dueDate: dueDateValue
+            ? dateAtMidnight(dueDateValue)
+            : null
+    };
+
+    $.ajax({
+        url: API_TASKS,
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(taskData)
+    })
+    .done(function () {
+        hideModal('createTaskModal');
+
+        $('#formCreateTask')[0].reset();
+        $('#selectedDeveloperId').val('');
+        $('#devSearchInput').val('');
+        $('#devSuggestions').empty().hide();
+
+        loadTasks();
+        loadSprints();
+
+        alert('Tâche créée avec succès !');
+    })
+    .fail(function (xhr) {
+        handleApiError(xhr, 'Erreur lors de la création de la tâche.');
+    });
+});
+
+
+// =====================================================
+// 13. MODALE DE SAISIE DU TEMPS
+// =====================================================
+
+$(document).on('click', '.btn-open-time-modal', function () {
+    const taskId = $(this).data('id');
+    const clientName = $(this).attr('data-client') || '';
+
+    $('#timeEntryTaskId').val(taskId);
+    $('#timeModalClient').text(clientName);
+
+    $('#timeEntryDate').val(getLocalDateString());
+    $('#timeEntryDuration').val('2');
+    $('#timeEntryNote').val('');
+
+    loadDevelopersDropdown();
+
+    showModal('timeEntryModal');
+});
+
+
+$('#formCreateTimeEntry').on('submit', function (e) {
+    e.preventDefault();
+
+    const taskId = parsePositiveId(
+        $('#timeEntryTaskId').val()
+    );
+
+    const developerId = parsePositiveId(
+        $('#timeEntryDevId').val()
+    );
+
+    const date = $('#timeEntryDate').val();
+    const durationValue = $('#timeEntryDuration').val();
+    const durationHours = Number(durationValue);
+
+    if (!taskId) {
+        alert('La tâche sélectionnée est invalide.');
+        return;
+    }
+
+    if (!developerId) {
+        alert('Veuillez sélectionner un développeur.');
+        return;
+    }
+
+    if (!date) {
+        alert('Veuillez sélectionner la date de travail.');
+        return;
+    }
+
+    if (
+        durationValue.trim() === '' ||
+        !Number.isFinite(durationHours) ||
+        durationHours <= 0
+    ) {
+        alert('La durée doit être supérieure à zéro.');
+        return;
+    }
+
+    const data = {
+        taskId: taskId,
+        developerId: developerId,
+        workDate: dateAtMidnight(date),
+        durationHours: durationHours,
+        note: $('#timeEntryNote').val().trim()
     };
 
     $.ajax({
         url: API_TIME_ENTRIES,
         type: 'POST',
         contentType: 'application/json',
-        data: JSON.stringify(data),
-        success: function() {
-            $('#timeEntryModal').modal('hide');
-            alert('Temps imputé avec succès !');
-        },
-        error: function(xhr) {
-            alert("Erreur lors de l'imputation du temps.");
-            console.error(xhr.responseText);
+        data: JSON.stringify(data)
+    })
+    .done(function () {
+        hideModal('timeEntryModal');
+
+        $('#formCreateTimeEntry')[0].reset();
+
+        loadTasks();
+
+        // Actualise également le rapport si un sprint est sélectionné.
+        const activeSprintId = $('.sprint-item.active').data('id');
+
+        if (activeSprintId) {
+            $(`.sprint-item[data-id="${activeSprintId}"]`).trigger('click');
         }
+
+        alert('Temps imputé avec succès !');
+    })
+    .fail(function (xhr) {
+        handleApiError(xhr, "Erreur lors de l'imputation du temps.");
     });
 });
-// Charger les sprints dans le menu déroulant de la modale d'édition
-function loadEditSprintDropdown(selectedSprintId) {
-    $.get(API_SPRINTS, function(sprints) {
-        let options = '<option value="">Aucun (Backlog)</option>';
-        sprints.forEach(s => {
-            let selected = (s.id === selectedSprintId) ? 'selected' : '';
-            options += `<option value="${s.id}" ${selected}>${escapeHtml(s.name)}</option>`;
+
+
+// =====================================================
+// 14. MODALE DE MODIFICATION D'UNE TÂCHE
+// =====================================================
+
+$(document).on('click', '.btn-open-edit-modal', function () {
+    const taskId = $(this).data('id');
+
+    $.get(`${API_TASKS}/${taskId}`)
+        .done(function (task) {
+            $('#editTaskId').val(task.id);
+            $('#editTaskClient').val(task.client);
+            $('#editTaskDescription').val(task.description);
+            $('#editTaskAssigneeId').val(task.assigneeId || '');
+            $('#editTaskEstimatedHours').val(task.estimatedHours);
+            $('#editTaskPriority').val(task.priority);
+
+            $('#editTaskDueDate').val(
+                formatDateForInput(task.dueDate)
+            );
+
+            loadEditSprintDropdown(task.sprintId);
+
+            showModal('editTaskModal');
+        })
+        .fail(function (xhr) {
+            handleApiError(
+                xhr,
+                'Impossible de charger les détails de la tâche.'
+            );
         });
-        $('#editTaskSprint').html(options);
-    });
-}
-
-// Ouvrir la modale d'édition et charger les données de la tâche
-$(document).on('click', '.btn-open-edit-modal', function() {
-    let taskId = $(this).data('id');
-
-    $.get(`${API_TASKS}/${taskId}`, function(task) {
-        $('#editTaskId').val(task.id);
-        $('#editTaskClient').val(task.client);
-        $('#editTaskDescription').val(task.description);
-        $('#editTaskAssigneeId').val(task.assigneeId);
-        $('#editTaskEstimatedHours').val(task.estimatedHours);
-        $('#editTaskPriority').val(task.priority);
-        $('#editTaskDueDate').val(task.dueDate ? task.dueDate.split('T')[0] : '');
-
-        loadEditSprintDropdown(task.sprintId);
-
-        let modal = new bootstrap.Modal(document.getElementById('editTaskModal'));
-        modal.show();
-    }).fail(function() {
-        alert("Impossible de charger les détails de la tâche.");
-    });
 });
 
-// Soumission du formulaire de mise à jour complète
-$('#formEditTask').submit(function(e) {
+
+$('#formEditTask').on('submit', function (e) {
     e.preventDefault();
 
-    let taskId = $('#editTaskId').val();
-    let sprintVal = $('#editTaskSprint').val();
+    const taskId = parsePositiveId($('#editTaskId').val());
 
-    let taskData = {
-        client: $('#editTaskClient').val(),
-        description: $('#editTaskDescription').val(),
-        assigneeId: parseInt($('#editTaskAssigneeId').val()),
-        sprintId: sprintVal ? parseInt(sprintVal) : null,
-        estimatedHours: parseFloat($('#editTaskEstimatedHours').val()),
-        priority: parseInt($('#editTaskPriority').val()),
-        dueDate: $('#editTaskDueDate').val() ? $('#editTaskDueDate').val() + 'T00:00:00' : new Date().toISOString()
+    const sprintValue = $('#editTaskSprint').val();
+
+    const assigneeValue = $('#editTaskAssigneeId').val();
+    const assigneeId = parsePositiveId(assigneeValue);
+
+    const estimatedValue = $('#editTaskEstimatedHours').val();
+    const estimatedHours = Number(estimatedValue);
+
+    if (!taskId) {
+        alert('Identifiant de tâche invalide.');
+        return;
+    }
+
+    if (!$('#editTaskClient').val().trim()) {
+        alert('Veuillez saisir le nom du client.');
+        return;
+    }
+
+    if (!$('#editTaskDescription').val().trim()) {
+        alert('Veuillez saisir la description de la tâche.');
+        return;
+    }
+
+    if (!assigneeId) {
+        alert('Veuillez sélectionner un développeur assigné.');
+        return;
+    }
+
+    if (
+        estimatedValue.trim() === '' ||
+        !Number.isFinite(estimatedHours) ||
+        estimatedHours < 0
+    ) {
+        alert('Veuillez saisir une estimation valide (>= 0).');
+        return;
+    }
+
+    const dueDateValue = $('#editTaskDueDate').val();
+
+    const taskData = {
+        client: $('#editTaskClient').val().trim(),
+        description: $('#editTaskDescription').val().trim(),
+        assigneeId: assigneeId,
+        sprintId: sprintValue ? parsePositiveId(sprintValue) : null,
+        estimatedHours: estimatedHours,
+        priority: parseInt($('#editTaskPriority').val(), 10),
+        dueDate: dueDateValue
+            ? dateAtMidnight(dueDateValue)
+            : null
     };
 
     $.ajax({
         url: `${API_TASKS}/${taskId}`,
         type: 'PUT',
         contentType: 'application/json',
-        data: JSON.stringify(taskData),
-        success: function() {
-            $('#editTaskModal').modal('hide');
-            loadTasks();
-            alert('Tâche mise à jour avec succès !');
-        },
-        error: function(xhr) {
-            alert("Erreur lors de la mise à jour de la tâche.");
-            console.error(xhr.responseText);
+        data: JSON.stringify(taskData)
+    })
+    .done(function () {
+        hideModal('editTaskModal');
+
+        loadTasks();
+        loadSprints();
+
+        alert('Tâche mise à jour avec succès !');
+    })
+    .fail(function (xhr) {
+        handleApiError(xhr, 'Erreur lors de la mise à jour de la tâche.');
+    });
+});
+
+
+// =====================================================
+// 15. SUPPRESSION D'UNE TÂCHE
+// =====================================================
+
+$(document).on('click', '.btn-delete-task', function () {
+    const taskId = $(this).data('id');
+
+    if (!confirm('Êtes-vous sûr de vouloir supprimer cette tâche ?')) {
+        return;
+    }
+
+    $.ajax({
+        url: `${API_TASKS}/${taskId}`,
+        type: 'DELETE'
+    })
+    .done(function () {
+        loadTasks();
+        loadSprints();
+
+        alert('Tâche supprimée avec succès !');
+    })
+    .fail(function (xhr) {
+        handleApiError(xhr, 'Erreur lors de la suppression de la tâche.');
+    });
+});
+
+
+// =====================================================
+// 16. INITIALISATION GLOBALE
+// =====================================================
+
+$(document).ready(function () {
+    loadTasks();
+    loadSprints();
+    loadDevelopersDropdown();
+
+    // Filtres du Kanban.
+    $('#filterClient').on('input', loadTasks);
+
+    $('#filterStatus, #filterPriority').on(
+        'change',
+        loadTasks
+    );
+
+    // Dates par défaut dans les formulaires, uniquement
+    // lorsque les champs sont vides.
+    if (!$('#newTaskDueDate').val()) {
+        $('#newTaskDueDate').val(getLocalDateString());
+    }
+
+    if (!$('#timeEntryDate').val()) {
+        $('#timeEntryDate').val(getLocalDateString());
+    }
+
+    // Masquer les suggestions quand on clique à l'extérieur.
+    $(document).on('click', function (e) {
+        if (
+            !$(e.target).closest(
+                '#devSearchInput, #devSuggestions'
+            ).length
+        ) {
+            $('#devSuggestions').hide();
         }
     });
 });
-    </script>
+</script>
+
 </body>
 </html>

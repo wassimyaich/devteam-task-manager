@@ -1,0 +1,276 @@
+﻿{
+    "ExecutedAt":  "2026-10-14T16:52:56.0508266+01:00",
+    "BaseUrl":  "http://localhost:5074",
+    "Summary":  {
+                    "Total":  33,
+                    "Passed":  33,
+                    "Failed":  0,
+                    "Errors":  0
+                },
+    "Results":  [
+                    {
+                        "Test":  "Swagger is reachable",
+                        "Result":  "PASS",
+                        "ExpectedStatus":  "200",
+                        "ActualStatus":  200,
+                        "Detail":  "",
+                        "Response":  "{\n  \"openapi\": \"3.0.4\",\n  \"info\": {\n    \"title\": \"DevTeamTaskManager.Api\",\n    \"version\": \"1.0\"\n  },\n  \"paths\": {\n    \"/api/Developers\": {\n      \"get\": {\n        \"tags\": [\n          \"Developers\"\n        ],\n        \"responses\": {\n          \"200\": {\n            \"description\": \"OK\",\n            \"content\": {\n              \"text/plain\": {\n                \"schema\": {\n                  \"type\": \"array\",\n                  \"items\": {\n                    \"$ref\": \"#/components/schemas/Developer\"\n           "
+                    },
+                    {
+                        "Test":  "GET Developers",
+                        "Result":  "PASS",
+                        "ExpectedStatus":  "200",
+                        "ActualStatus":  200,
+                        "Detail":  "",
+                        "Response":  "[{\"id\":1,\"name\":\"Wassim Yaich\",\"email\":\"wassim@devteam.local\",\"tasks\":[],\"timeEntries\":[]},{\"id\":2,\"name\":\"Sarah Ben Ali\",\"email\":\"sarah@devteam.local\",\"tasks\":[],\"timeEntries\":[]},{\"id\":3,\"name\":\"Mehdi Trabelsi\",\"email\":\"mehdi@devteam.local\",\"tasks\":[],\"timeEntries\":[]}]"
+                    },
+                    {
+                        "Test":  "GET Tasks",
+                        "Result":  "PASS",
+                        "ExpectedStatus":  "200",
+                        "ActualStatus":  200,
+                        "Detail":  "",
+                        "Response":  "[{\"id\":1,\"client\":\"Acme Corp\",\"description\":\"Implémenter le système d authentification JWT\",\"assigneeId\":1,\"assigneeName\":\"Wassim Yaich\",\"estimatedHours\":8.00,\"dueDate\":\"2026-10-16T17:00:00\",\"priority\":2,\"status\":0,\"sprintId\":1,\"sprintName\":\"Sprint 1 - MVP Foundation\",\"createdAt\":\"2026-10-14T15:25:53.54\"},{\"id\":2,\"client\":\"Fintech Global\",\"description\":\"Optimiser les requêtes SQL des rapports\",\"assigneeId\":3,\"assigneeName\":\"Mehdi Trabelsi\",\"estimatedHours\":5.00,\"dueDate\":\"2026-10-17T17:00:00\",\"p"
+                    },
+                    {
+                        "Test":  "GET Sprints",
+                        "Result":  "PASS",
+                        "ExpectedStatus":  "200",
+                        "ActualStatus":  200,
+                        "Detail":  "",
+                        "Response":  "[{\"id\":1,\"name\":\"Sprint 1 - MVP Foundation\",\"startDate\":\"2026-10-01T00:00:00\",\"endDate\":\"2026-10-15T23:59:59\",\"status\":2,\"taskCount\":4}]"
+                    },
+                    {
+                        "Test":  "GET TimeEntries",
+                        "Result":  "PASS",
+                        "ExpectedStatus":  "200",
+                        "ActualStatus":  200,
+                        "Detail":  "",
+                        "Response":  "[{\"id\":1,\"taskId\":4,\"client\":\"LogiTrans\",\"developerId\":1,\"developerName\":\"Wassim Yaich\",\"workDate\":\"2026-10-14T00:00:00\",\"durationHours\":3.50,\"note\":\"Mise en place de l interface et liaison des événements\",\"createdAt\":\"2026-10-14T15:25:53.5433333\"},{\"id\":2,\"taskId\":3,\"client\":\"E-Shop Pro\",\"developerId\":2,\"developerName\":\"Sarah Ben Ali\",\"workDate\":\"2026-10-14T00:00:00\",\"durationHours\":2.00,\"note\":\"Identification de la source du bug d arrondi de TVA\",\"createdAt\":\"2026-10-14T15:25:53.5433333\"}]"
+                    },
+                    {
+                        "Test":  "Unknown task returns 404",
+                        "Result":  "PASS",
+                        "ExpectedStatus":  "404",
+                        "ActualStatus":  404,
+                        "Detail":  "",
+                        "Response":  "{\"type\":\"https://tools.ietf.org/html/rfc9110#section-15.5.5\",\"title\":\"Not Found\",\"status\":404,\"traceId\":\"00-eca395fe08f1c6964fb00c2a0a991225-c556e32a1d709ec5-00\"}"
+                    },
+                    {
+                        "Test":  "Unknown time entry returns 404",
+                        "Result":  "PASS",
+                        "ExpectedStatus":  "404",
+                        "ActualStatus":  404,
+                        "Detail":  "",
+                        "Response":  "{\"type\":\"https://tools.ietf.org/html/rfc9110#section-15.5.5\",\"title\":\"Not Found\",\"status\":404,\"traceId\":\"00-f83492ae07e67c678f28e0eb5fa8c732-d7314067bb20ddb9-00\"}"
+                    },
+                    {
+                        "Test":  "Unknown sprint capacity returns 404",
+                        "Result":  "PASS",
+                        "ExpectedStatus":  "404",
+                        "ActualStatus":  404,
+                        "Detail":  "",
+                        "Response":  "{\"type\":\"https://tools.ietf.org/html/rfc9110#section-15.5.5\",\"title\":\"Not Found\",\"status\":404,\"traceId\":\"00-752dc433042532b4c7e9dfefeb61a709-337613d35e5210e0-00\"}"
+                    },
+                    {
+                        "Test":  "Deleting unknown task returns 404",
+                        "Result":  "PASS",
+                        "ExpectedStatus":  "404",
+                        "ActualStatus":  404,
+                        "Detail":  "",
+                        "Response":  "{\"type\":\"https://tools.ietf.org/html/rfc9110#section-15.5.5\",\"title\":\"Not Found\",\"status\":404,\"traceId\":\"00-6d4ff9e6affe3737292d0375f1424f4e-ebe44243b6e44aba-00\"}"
+                    },
+                    {
+                        "Test":  "Task filter by assigneeId",
+                        "Result":  "PASS",
+                        "ExpectedStatus":  "200",
+                        "ActualStatus":  200,
+                        "Detail":  "",
+                        "Response":  "[{\"id\":1,\"client\":\"Acme Corp\",\"description\":\"Implémenter le système d authentification JWT\",\"assigneeId\":1,\"assigneeName\":\"Wassim Yaich\",\"estimatedHours\":8.00,\"dueDate\":\"2026-10-16T17:00:00\",\"priority\":2,\"status\":0,\"sprintId\":1,\"sprintName\":\"Sprint 1 - MVP Foundation\",\"createdAt\":\"2026-10-14T15:25:53.54\"},{\"id\":4,\"client\":\"LogiTrans\",\"description\":\"Mettre en place le Drag \u0026 Drop jQuery UI\",\"assigneeId\":1,\"assigneeName\":\"Wassim Yaich\",\"estimatedHours\":6.00,\"dueDate\":\"2026-10-15T12:00:00\",\"priorit"
+                    },
+                    {
+                        "Test":  "Invalid status filter rejected",
+                        "Result":  "PASS",
+                        "ExpectedStatus":  "400",
+                        "ActualStatus":  400,
+                        "Detail":  "",
+                        "Response":  "{\"type\":\"https://tools.ietf.org/html/rfc9110#section-15.5.1\",\"title\":\"One or more validation errors occurred.\",\"status\":400,\"errors\":{\"status\":[\"The value \u0027999\u0027 is invalid.\"]},\"traceId\":\"00-478261b26a679eaab71e097df46d14f9-61a42be7e834230f-00\"}"
+                    },
+                    {
+                        "Test":  "Invalid priority filter rejected",
+                        "Result":  "PASS",
+                        "ExpectedStatus":  "400",
+                        "ActualStatus":  400,
+                        "Detail":  "",
+                        "Response":  "{\"type\":\"https://tools.ietf.org/html/rfc9110#section-15.5.1\",\"title\":\"One or more validation errors occurred.\",\"status\":400,\"errors\":{\"priority\":[\"The value \u0027999\u0027 is invalid.\"]},\"traceId\":\"00-8ef902a628cdd33b3c522423b85518a8-e8fbf6746970755c-00\"}"
+                    },
+                    {
+                        "Test":  "Create valid task returns 201",
+                        "Result":  "PASS",
+                        "ExpectedStatus":  "201",
+                        "ActualStatus":  201,
+                        "Detail":  "",
+                        "Response":  "{\"id\":5,\"client\":\"QA_AUTOTEST_20261014165255\",\"description\":\"Temporary task created by API regression test; safe to delete\",\"assigneeId\":1,\"assigneeName\":\"\",\"estimatedHours\":5,\"dueDate\":\"2026-10-28T16:52:55\",\"priority\":2,\"status\":1,\"sprintId\":null,\"sprintName\":null,\"createdAt\":\"0001-01-01T00:00:00\"}"
+                    },
+                    {
+                        "Test":  "Read created task returns 200",
+                        "Result":  "PASS",
+                        "ExpectedStatus":  "200",
+                        "ActualStatus":  200,
+                        "Detail":  "",
+                        "Response":  "{\"id\":5,\"client\":\"QA_AUTOTEST_20261014165255\",\"description\":\"Temporary task created by API regression test; safe to delete\",\"assigneeId\":1,\"assigneeName\":\"Wassim Yaich\",\"estimatedHours\":5.00,\"dueDate\":\"2026-10-28T16:52:55\",\"priority\":2,\"status\":1,\"sprintId\":null,\"sprintName\":null,\"createdAt\":\"2026-10-14T15:52:55.3899376\"}"
+                    },
+                    {
+                        "Test":  "Created task ID matches",
+                        "Result":  "PASS",
+                        "ExpectedStatus":  "Condition",
+                        "ActualStatus":  "OK",
+                        "Detail":  "id=5",
+                        "Response":  ""
+                    },
+                    {
+                        "Test":  "Client text filter finds test task",
+                        "Result":  "PASS",
+                        "ExpectedStatus":  "200",
+                        "ActualStatus":  200,
+                        "Detail":  "",
+                        "Response":  "[{\"id\":5,\"client\":\"QA_AUTOTEST_20261014165255\",\"description\":\"Temporary task created by API regression test; safe to delete\",\"assigneeId\":1,\"assigneeName\":\"Wassim Yaich\",\"estimatedHours\":5.00,\"dueDate\":\"2026-10-28T16:52:55\",\"priority\":2,\"status\":1,\"sprintId\":null,\"sprintName\":null,\"createdAt\":\"2026-10-14T15:52:55.3899376\"}]"
+                    },
+                    {
+                        "Test":  "Client filter contains test task",
+                        "Result":  "PASS",
+                        "ExpectedStatus":  "Condition",
+                        "ActualStatus":  "OK",
+                        "Detail":  "taskId=5",
+                        "Response":  ""
+                    },
+                    {
+                        "Test":  "Invalid task payload is rejected (expected 400)",
+                        "Result":  "PASS",
+                        "ExpectedStatus":  "400 or 422",
+                        "ActualStatus":  400,
+                        "Detail":  "If this fails, DTO validation is missing.",
+                        "Response":  "{\"type\":\"https://tools.ietf.org/html/rfc9110#section-15.5.1\",\"title\":\"One or more validation errors occurred.\",\"status\":400,\"errors\":{\"Client\":[\"The Client field is required.\",\"The field Client must be a string with a minimum length of 1 and a maximum length of 200.\"],\"Priority\":[\"The field Priority is invalid.\"],\"Description\":[\"The Description field is required.\",\"The field Description must be a string with a minimum length of 1 and a maximum length of 2000.\"],\"EstimatedHours\":[\"The field Estim"
+                    },
+                    {
+                        "Test":  "EstimatedHours=0 rejected (expected 400)",
+                        "Result":  "PASS",
+                        "ExpectedStatus":  "400",
+                        "ActualStatus":  400,
+                        "Detail":  "Known defect if API returns 204.",
+                        "Response":  "{\"type\":\"https://tools.ietf.org/html/rfc9110#section-15.5.1\",\"title\":\"One or more validation errors occurred.\",\"status\":400,\"errors\":{\"EstimatedHours\":[\"The field EstimatedHours must be between 0.1 and 1000.\"]},\"traceId\":\"00-87cb86f0e96737b24b71682f35060387-f2583b177f8c6c52-00\"}"
+                    },
+                    {
+                        "Test":  "EstimatedHours=0.1 accepted",
+                        "Result":  "PASS",
+                        "ExpectedStatus":  "200 or 204",
+                        "ActualStatus":  204,
+                        "Detail":  "",
+                        "Response":  ""
+                    },
+                    {
+                        "Test":  "Minimum estimate persisted",
+                        "Result":  "PASS",
+                        "ExpectedStatus":  "Condition",
+                        "ActualStatus":  "OK",
+                        "Detail":  "actual=0.10",
+                        "Response":  ""
+                    },
+                    {
+                        "Test":  "Invalid task status rejected (expected 400)",
+                        "Result":  "PASS",
+                        "ExpectedStatus":  "400",
+                        "ActualStatus":  400,
+                        "Detail":  "Known defect if API returns 204.",
+                        "Response":  "{\"type\":\"https://tools.ietf.org/html/rfc9110#section-15.5.1\",\"title\":\"One or more validation errors occurred.\",\"status\":400,\"errors\":{\"Status\":[\"The field Status is invalid.\"]},\"traceId\":\"00-580eb33d205beeb6fe58f1526a5be8c6-5d8ea7dbc69bc996-00\"}"
+                    },
+                    {
+                        "Test":  "Update task with PUT returns 204",
+                        "Result":  "PASS",
+                        "ExpectedStatus":  "204",
+                        "ActualStatus":  204,
+                        "Detail":  "",
+                        "Response":  ""
+                    },
+                    {
+                        "Test":  "PUT changes persisted",
+                        "Result":  "PASS",
+                        "ExpectedStatus":  "Condition",
+                        "ActualStatus":  "OK",
+                        "Detail":  "status=2, estimate=3.50, priority=3",
+                        "Response":  ""
+                    },
+                    {
+                        "Test":  "Time entry duration 25h rejected",
+                        "Result":  "PASS",
+                        "ExpectedStatus":  "400",
+                        "ActualStatus":  400,
+                        "Detail":  "",
+                        "Response":  "{\"message\":\"La durée en heures doit être comprise entre 0.1 et 24 heures pour une seule entrée.\"}"
+                    },
+                    {
+                        "Test":  "Create valid time entry returns 201",
+                        "Result":  "PASS",
+                        "ExpectedStatus":  "201",
+                        "ActualStatus":  201,
+                        "Detail":  "",
+                        "Response":  "{\"id\":3,\"taskId\":5,\"client\":\"\",\"developerId\":1,\"developerName\":\"\",\"workDate\":\"2026-10-14T16:52:55\",\"durationHours\":0.5,\"note\":\"QA temporary entry\",\"createdAt\":\"2026-10-14T15:52:55.8171436Z\"}"
+                    },
+                    {
+                        "Test":  "Read created time entry returns 200",
+                        "Result":  "PASS",
+                        "ExpectedStatus":  "200",
+                        "ActualStatus":  200,
+                        "Detail":  "",
+                        "Response":  "{\"id\":3,\"taskId\":5,\"client\":\"QA_AUTOTEST_20261014165255\",\"developerId\":1,\"developerName\":\"Wassim Yaich\",\"workDate\":\"2026-10-14T16:52:55\",\"durationHours\":0.50,\"note\":\"QA temporary entry\",\"createdAt\":\"2026-10-14T15:52:55.8171436\"}"
+                    },
+                    {
+                        "Test":  "Time entry persisted with expected duration",
+                        "Result":  "PASS",
+                        "ExpectedStatus":  "Condition",
+                        "ActualStatus":  "OK",
+                        "Detail":  "entryId=3",
+                        "Response":  ""
+                    },
+                    {
+                        "Test":  "Sprint end date before start date rejected",
+                        "Result":  "PASS",
+                        "ExpectedStatus":  "400",
+                        "ActualStatus":  400,
+                        "Detail":  "",
+                        "Response":  "La date de fin du sprint doit être postérieure ou égale à la date de début."
+                    },
+                    {
+                        "Test":  "GET active sprints",
+                        "Result":  "PASS",
+                        "ExpectedStatus":  "200",
+                        "ActualStatus":  200,
+                        "Detail":  "",
+                        "Response":  "[{\"id\":1,\"name\":\"Sprint 1 - MVP Foundation\",\"startDate\":\"2026-10-01T00:00:00\",\"endDate\":\"2026-10-15T23:59:59\",\"status\":2,\"tasks\":[]}]"
+                    },
+                    {
+                        "Test":  "Existing sprint capacity returns 200",
+                        "Result":  "PASS",
+                        "ExpectedStatus":  "200",
+                        "ActualStatus":  200,
+                        "Detail":  "",
+                        "Response":  "{\"sprintId\":1,\"sprintName\":\"Sprint 1 - MVP Foundation\",\"status\":2,\"startDate\":\"2026-10-01T00:00:00\",\"endDate\":\"2026-10-15T23:59:59\",\"workingDays\":11,\"totalTasks\":4,\"totalEstimatedHours\":19.50,\"totalLoggedHours\":5.50,\"isOverBudget\":false,\"developerAllocations\":[{\"developerId\":1,\"developerName\":\"Wassim Yaich\",\"assignedTasksCount\":2,\"estimatedHours\":14.00,\"loggedHours\":3.50,\"capacityHours\":77.0,\"allocationPercentage\":18.18,\"isOverloaded\":false},{\"developerId\":3,\"developerName\":\"Mehdi Trabelsi\",\"ass"
+                    },
+                    {
+                        "Test":  "Sprint capacity has required totals",
+                        "Result":  "PASS",
+                        "ExpectedStatus":  "Condition",
+                        "ActualStatus":  "OK",
+                        "Detail":  "sprintId=1",
+                        "Response":  ""
+                    },
+                    {
+                        "Test":  "Cleanup test task 5",
+                        "Result":  "PASS",
+                        "ExpectedStatus":  "204 or 404",
+                        "ActualStatus":  204,
+                        "Detail":  "",
+                        "Response":  ""
+                    }
+                ]
+}

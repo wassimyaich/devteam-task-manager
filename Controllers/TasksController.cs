@@ -130,9 +130,12 @@ namespace DevTeamTaskManager.Api.Controllers
         [HttpPatch("{id}/inline")]
         public async Task<IActionResult> InlineUpdateTask(int id, InlineUpdateTaskDto dto)
         {
-            if (dto.EstimatedHours.HasValue && (dto.EstimatedHours.Value < 0 || dto.EstimatedHours.Value > 1000))
+            if (dto.EstimatedHours.HasValue &&
+     (dto.EstimatedHours.Value < 0.1m ||
+      dto.EstimatedHours.Value > 1000m))
             {
-                return BadRequest("L'estimation doit être comprise entre 0 et 1000 heures.");
+                return BadRequest(
+                    "L'estimation doit être comprise entre 0.1 et 1000 heures.");
             }
             var task = await _context.Tasks.FindAsync(id);
             if (task == null) return NotFound();
@@ -203,6 +206,13 @@ namespace DevTeamTaskManager.Api.Controllers
             task.DueDate = dto.DueDate;
             task.Priority = dto.Priority;
             task.SprintId = dto.SprintId;
+
+            // Utilisation de .HasValue et .Value pour gérer proprement le type nullable
+            if (dto.Status.HasValue)
+            {
+                task.Status = dto.Status.Value;
+            }
+
             task.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();

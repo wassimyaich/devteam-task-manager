@@ -167,4 +167,6 @@ C:\xampp\htdocs\DevTeamTaskManager\DevTeamTaskManager.Api\obj\Debug\net10.0\DevT
 C:\xampp\htdocs\DevTeamTaskManager\DevTeamTaskManager.Api\obj\Debug\net10.0\DevTeamTaskManager.Api.genruntimeconfig.cache
 C:\xampp\htdocs\DevTeamTaskManager\DevTeamTaskManager.Api\obj\Debug\net10.0\ref\DevTeamTaskManager.Api.dll
 C:\xampp\htdocs\DevTeamTaskManager\DevTeamTaskManager.Api\bin\Debug\net10.0\DevTeamTaskManager.Api.staticwebassets.runtime.json
-C:\xampp\htdocs\DevTeamTaskManager\DevTeamTaskManager.Api\obj\Debug\net10.0\compressed\qjzv7la75q-{0}-705n4ljwh0-705n4ljwh0.gz
+C:\xampp\htdocs\DevTeamTaskManager\DevTeamTaskManager.Api\obj\Debug\net10.0\DevTeamTaskManager.Api.sourcelink.json
+C:\xampp\htdocs\DevTeamTaskManager\DevTeamTaskManager.Api\bin\Debug\net10.0\DevTeamTaskManager-TestReport.json
+C:\xampp\htdocs\DevTeamTaskManager\DevTeamTaskManager.Api\obj\Debug\net10.0\compressed\qjzv7la75q-{0}-3syn32881v-3syn32881v.gz
