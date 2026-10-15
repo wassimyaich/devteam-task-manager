@@ -91,7 +91,10 @@ namespace DevTeamTaskManager.Api.Controllers
             {
                 TaskId = dto.TaskId,
                 DeveloperId = dto.DeveloperId,
-                WorkDate = dto.WorkDate == default ? DateTime.UtcNow : dto.WorkDate,
+                // WorkDate = dto.WorkDate == default ? DateTime.UtcNow : dto.WorkDate,
+                WorkDate = dto.WorkDate == default
+                    ? DateTime.UtcNow
+                    : DateTime.SpecifyKind(dto.WorkDate, DateTimeKind.Utc),
                 DurationHours = dto.DurationHours,
                 Note = dto.Note,
                 CreatedAt = DateTime.UtcNow
