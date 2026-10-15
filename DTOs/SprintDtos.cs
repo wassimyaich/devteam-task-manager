@@ -10,6 +10,7 @@ namespace DevTeamTaskManager.Api.DTOs
         public DateTime StartDate { get; set; }
         public DateTime EndDate { get; set; }
         public SprintStatus Status { get; set; }
+        public List<int> TaskIds { get; set; } = new();
     }
 
     public class SprintCapacityDto

@@ -1,77 +1,160 @@
 USE DevTeamDb;
 
--- Nettoyage au cas où
-DELETE TimeEntries;
 
-DELETE Tasks;
+GO
+SET NOCOUNT ON;
 
-DELETE Sprints;
+SET XACT_ABORT ON;
 
-DELETE Developers;
-
--- 1. Insertion des développeurs (Équipe technique)
-SET IDENTITY_INSERT Developers ON;
-
-INSERT  INTO Developers (
-    Id,
-    Name,
-    Email
-)
-VALUES                  (1, 'Wassim Yaich', 'wassim@devteam.local'),
-                        (2, 'Sarah Ben Ali', 'sarah@devteam.local'),
-                        (3, 'Mehdi Trabelsi', 'mehdi@devteam.local');
-
-SET IDENTITY_INSERT Developers OFF;
-
--- 2. Insertion des Sprints (Passé, Actuel, Futur)
-SET IDENTITY_INSERT Sprints ON;
-
-INSERT  INTO Sprints (
-    Id,
-    Name,
-    StartDate,
-    EndDate,
-    Status
-)
-VALUES               (1, 'Sprint 1 - MVP Foundation', '2026-10-01 00:00:00', '2026-10-15 23:59:59', 2); -- Closed
-
-SET IDENTITY_INSERT Sprints OFF;
-
--- 3. Insertion des Tâches (Kanban réaliste)
-SET IDENTITY_INSERT Tasks ON;
-
-INSERT  INTO Tasks (
-    Id,
-    Client,
-    Description,
-    AssigneeId,
-    EstimatedHours,
-    DueDate,
-    Priority,
-    Status,
-    SprintId,
-    CreatedAt
-)
-VALUES             (1, 'Acme Corp', 'Implémenter le système d authentification JWT', 1, 8.0, '2026-10-16 17:00:00', 2, 0, 1, GETUTCDATE()),
-                   (2, 'Fintech Global', 'Optimiser les requêtes SQL des rapports', 3, 5.0, '2026-10-17 17:00:00', 1, 0, 1, GETUTCDATE()),
-                   (3, 'E-Shop Pro', 'Corriger le bug de calcul de TVA', 2, 4.0, '2026-10-15 17:00:00', 2, 1, 1, GETUTCDATE()),
-                   (4, 'LogiTrans', 'Mettre en place le Drag & Drop jQuery UI', 1, 6.0, '2026-10-15 12:00:00', 2, 1, 1, GETUTCDATE());
-
-SET IDENTITY_INSERT Tasks OFF;
-
--- 4. Insertion des imputations de temps (Time Entries) avec les bons noms de colonnes
-SET IDENTITY_INSERT TimeEntries ON;
-
-INSERT  INTO TimeEntries (
-    Id,
-    TaskId,
-    DeveloperId,
-    DurationHours,
-    WorkDate,
-    Note,
-    CreatedAt
-)
-VALUES                   (1, 4, 1, 3.5, '2026-10-14 00:00:00', 'Mise en place de l interface et liaison des événements', GETUTCDATE()),
-                         (2, 3, 2, 2.0, '2026-10-14 00:00:00', 'Identification de la source du bug d arrondi de TVA', GETUTCDATE());
-
-SET IDENTITY_INSERT TimeEntries OFF;
+BEGIN TRY
+    BEGIN TRANSACTION;
+    DECLARE @D TABLE (
+        Id INT PRIMARY KEY);
+    DECLARE @S TABLE (
+        Id INT PRIMARY KEY);
+    DECLARE @T TABLE (
+        Id INT PRIMARY KEY);
+    DECLARE @E TABLE (
+        Id INT PRIMARY KEY);
+    DECLARE @D0 AS INT = ISNULL((SELECT MAX(Id)
+                                 FROM   dbo.Developers), 0);
+    DECLARE @S0 AS INT = ISNULL((SELECT MAX(Id)
+                                 FROM   dbo.Sprints), 0);
+    DECLARE @T0 AS INT = ISNULL((SELECT MAX(Id)
+                                 FROM   dbo.Tasks), 0);
+    DECLARE @E0 AS INT = ISNULL((SELECT MAX(Id)
+                                 FROM   dbo.TimeEntries), 0);
+    -- 1. Insert 10 developers
+    SET IDENTITY_INSERT dbo.Developers ON;
+    INSERT INTO dbo.Developers (
+        Id,
+        Name,
+        Email
+    )
+    OUTPUT inserted.Id INTO @D (Id)
+    SELECT @D0 + n,
+           CONCAT('Test Developer ', n),
+           CONCAT('test', @D0 + n, '@devteam.local')
+    FROM   (VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10)) AS v(n);
+    SET IDENTITY_INSERT dbo.Developers OFF;
+    -- 2. Insert 5 sprints
+    SET IDENTITY_INSERT dbo.Sprints ON;
+    INSERT INTO dbo.Sprints (
+        Id,
+        Name,
+        StartDate,
+        EndDate,
+        Status
+    )
+    OUTPUT inserted.Id INTO @S (Id)
+    SELECT @S0 + n,
+           CONCAT('Test Sprint ', n),
+           DATEADD(DAY, (n - 1) * 14, CAST ('2026-10-01' AS DATETIME)),
+           DATEADD(DAY, (n - 1) * 14 + 13, CAST ('2026-10-01' AS DATETIME)),
+           CASE WHEN n = 1 THEN 2 ELSE 1 END
+    FROM   (VALUES (1), (2), (3), (4), (5)) AS v(n);
+    SET IDENTITY_INSERT dbo.Sprints OFF;
+    -- 3. Insert 35 tasks
+    SET IDENTITY_INSERT dbo.Tasks ON;
+    INSERT INTO dbo.Tasks (
+        Id,
+        Client,
+        Description,
+        AssigneeId,
+        EstimatedHours,
+        DueDate,
+        Priority,
+        Status,
+        SprintId,
+        CreatedAt
+    )
+    OUTPUT inserted.Id INTO @T (Id)
+    SELECT @T0 + n,
+           CONCAT('Test Client ', ((n - 1) % 8) + 1),
+           CONCAT('Test task description ', n),
+           @D0 + ((n - 1) % 10) + 1,
+           CAST (2 + (n % 15) * 1.25 AS DECIMAL (10, 2)),
+           DATEADD(DAY, n, CAST ('2026-10-15' AS DATETIME)),
+           ((n - 1) % 3) + 1,
+           (n - 1) % 4,
+           @S0 + ((n - 1) % 5) + 1,
+           GETUTCDATE()
+    FROM   (VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10), (11), (12), (13), (14), (15), (16), (17), (18), (19), (20), (21), (22), (23), (24), (25), (26), (27), (28), (29), (30), (31), (32), (33), (34), (35)) AS v(n);
+    SET IDENTITY_INSERT dbo.Tasks OFF;
+    -- 4. Insert 50 time entries
+    SET IDENTITY_INSERT dbo.TimeEntries ON;
+    INSERT INTO dbo.TimeEntries (
+        Id,
+        TaskId,
+        DeveloperId,
+        DurationHours,
+        WorkDate,
+        Note,
+        CreatedAt
+    )
+    OUTPUT inserted.Id INTO @E (Id)
+    SELECT @E0 + n,
+           @T0 + ((n - 1) % 35) + 1,
+           @D0 + ((n - 1) % 10) + 1,
+           CAST (0.5 + ((n - 1) % 8) * 0.5 AS DECIMAL (10, 2)),
+           DATEADD(DAY, n - 1, CAST ('2026-10-01' AS DATETIME)),
+           CONCAT('Test work log ', n),
+           GETUTCDATE()
+    FROM   (VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10), (11), (12), (13), (14), (15), (16), (17), (18), (19), (20), (21), (22), (23), (24), (25), (26), (27), (28), (29), (30), (31), (32), (33), (34), (35), (36), (37), (38), (39), (40), (41), (42), (43), (44), (45), (46), (47), (48), (49), (50)) AS v(n);
+    SET IDENTITY_INSERT dbo.TimeEntries OFF;
+    -- 5. Verify saved records before committing
+    SELECT 'Developers' AS TableName,
+           COUNT(*) AS InsertedRecords
+    FROM   @D
+    UNION ALL
+    SELECT 'Sprints',
+           COUNT(*)
+    FROM   @S
+    UNION ALL
+    SELECT 'Tasks',
+           COUNT(*)
+    FROM   @T
+    UNION ALL
+    SELECT 'TimeEntries',
+           COUNT(*)
+    FROM   @E
+    UNION ALL
+    SELECT 'TOTAL',
+           (SELECT COUNT(*)
+            FROM   @D) + (SELECT COUNT(*)
+                          FROM   @S) + (SELECT COUNT(*)
+                                        FROM   @T) + (SELECT COUNT(*)
+                                                      FROM   @E);
+    -- 6. Permanently save the records
+    COMMIT TRANSACTION;
+    PRINT 'SUCCESS: 100 sample records saved to DevTeamDb.';
+    PRINT 'Refresh your frontend to test the data.';
+END TRY
+BEGIN CATCH
+    IF XACT_STATE() <> 0
+        ROLLBACK;
+    BEGIN TRY
+        SET IDENTITY_INSERT dbo.Developers OFF;
+    END TRY
+    BEGIN CATCH
+    END CATCH
+    BEGIN TRY
+        SET IDENTITY_INSERT dbo.Sprints OFF;
+    END TRY
+    BEGIN CATCH
+    END CATCH
+    BEGIN TRY
+        SET IDENTITY_INSERT dbo.Tasks OFF;
+    END TRY
+    BEGIN CATCH
+    END CATCH
+    BEGIN TRY
+        SET IDENTITY_INSERT dbo.TimeEntries OFF;
+    END TRY
+    BEGIN CATCH
+    END CATCH
+    SELECT ERROR_NUMBER() AS ErrorNumber,
+           ERROR_MESSAGE() AS ErrorMessage,
+           ERROR_LINE() AS ErrorLine;
+    THROW;
+END CATCH

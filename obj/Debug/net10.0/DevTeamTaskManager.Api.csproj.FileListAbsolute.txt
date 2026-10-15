@@ -169,4 +169,4 @@ C:\xampp\htdocs\DevTeamTaskManager\DevTeamTaskManager.Api\obj\Debug\net10.0\ref\
 C:\xampp\htdocs\DevTeamTaskManager\DevTeamTaskManager.Api\bin\Debug\net10.0\DevTeamTaskManager.Api.staticwebassets.runtime.json
 C:\xampp\htdocs\DevTeamTaskManager\DevTeamTaskManager.Api\obj\Debug\net10.0\DevTeamTaskManager.Api.sourcelink.json
 C:\xampp\htdocs\DevTeamTaskManager\DevTeamTaskManager.Api\bin\Debug\net10.0\DevTeamTaskManager-TestReport.json
-C:\xampp\htdocs\DevTeamTaskManager\DevTeamTaskManager.Api\obj\Debug\net10.0\compressed\qjzv7la75q-{0}-3syn32881v-3syn32881v.gz
+C:\xampp\htdocs\DevTeamTaskManager\DevTeamTaskManager.Api\obj\Debug\net10.0\compressed\qjzv7la75q-{0}-uo43z9ei3n-uo43z9ei3n.gz

@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("DevTeamTaskManager.Api")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+c9654dc4cd8cfe32f419e6c69646002935a7a00e")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+28a2bad48c180f46e48ffaa3faaf1131f00ae4d6")]
 [assembly: System.Reflection.AssemblyProductAttribute("DevTeamTaskManager.Api")]
 [assembly: System.Reflection.AssemblyTitleAttribute("DevTeamTaskManager.Api")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

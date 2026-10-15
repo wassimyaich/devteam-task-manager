@@ -63,6 +63,19 @@ namespace DevTeamTaskManager.Api.DTOs
         public Status Status { get; set; }
         public int? SprintId { get; set; }
         public string? SprintName { get; set; }
+        public decimal LoggedHours { get; set; }
+        public bool IsOverBudget { get; set; }
         public DateTime CreatedAt { get; set; }
+    }
+
+    public class TaskReportDto
+    {
+        public int TaskId { get; set; }
+        public string Client { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public decimal EstimatedHours { get; set; }
+        public decimal LoggedHours { get; set; }
+        public bool IsOverBudget { get; set; }
+        public IEnumerable<TimeEntryResponseDto> TimeEntries { get; set; } = [];
     }
 }

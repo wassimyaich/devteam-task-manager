@@ -37,26 +37,7 @@ namespace DevTeamTaskManager.Api.Controllers
             return Ok(sprints);
         }
 
-        [HttpPost]
-        public async Task<ActionResult<Sprint>> CreateSprint(CreateSprintDto dto)
-        {
-            if (dto.EndDate < dto.StartDate)
-            {
-                return BadRequest("La date de fin du sprint doit être postérieure ou égale à la date de début.");
-            }
-            var sprint = new Sprint
-            {
-                Name = dto.Name,
-                StartDate = dto.StartDate,
-                EndDate = dto.EndDate,
-                Status = dto.Status
-            };
 
-            _context.Sprints.Add(sprint);
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction(nameof(GetSprints), new { id = sprint.Id }, sprint);
-        }
 
         [HttpGet("{id}/capacity")]
         public async Task<ActionResult<object>> GetSprintCapacity(int id)
@@ -118,6 +99,7 @@ namespace DevTeamTaskManager.Api.Controllers
                 EndDate = sprint.EndDate,
                 WorkingDays = workingDays,
                 TotalTasks = sprint.Tasks.Count,
+                OpenTasks = sprint.Tasks.Count(t => t.Status != Status.Completed),
                 TotalEstimatedHours = totalEstimated,
                 TotalLoggedHours = totalLogged,
                 IsOverBudget = totalLogged > totalEstimated,
@@ -146,6 +128,96 @@ namespace DevTeamTaskManager.Api.Controllers
                 .OrderByDescending(s => s.StartDate)
                 .Take(10) // Afficher les 10 sprints pertinents maximum
                 .ToListAsync();
+        }
+
+        // [HttpPost]
+        // public async Task<ActionResult<Sprint>> CreateSprint(CreateSprintDto dto)
+        // {
+        //     if (dto.EndDate < dto.StartDate)
+        //     {
+        //         return BadRequest("La date de fin du sprint doit être postérieure ou égale à la date de début.");
+        //     }
+        //     var sprint = new Sprint
+        //     {
+        //         Name = dto.Name,
+        //         StartDate = dto.StartDate,
+        //         EndDate = dto.EndDate,
+        //         Status = dto.Status
+        //     };
+
+        //     _context.Sprints.Add(sprint);
+        //     await _context.SaveChangesAsync();
+
+        //     if (dto.TaskIds != null && dto.TaskIds.Count > 0)
+        //     {
+        //         var tasks = await _context.Tasks
+        //             .Where(t => dto.TaskIds.Contains(t.Id))
+        //             .ToListAsync();
+
+        //         foreach (var task in tasks)
+        //         {
+        //             task.SprintId = sprint.Id;
+        //         }
+
+        //         await _context.SaveChangesAsync();
+        //     }
+
+        //     return CreatedAtAction(nameof(GetSprints), new { id = sprint.Id }, sprint);
+        // }
+
+        [HttpPost]
+        public async Task<ActionResult<Sprint>> CreateSprint([FromBody] CreateSprintDto dto)
+        {
+            if (dto.EndDate < dto.StartDate)
+            {
+                return BadRequest(new { message = "La date de fin du sprint doit être postérieure ou égale à la date de début." });
+            }
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                var sprint = new Sprint
+                {
+                    Name = dto.Name,
+                    StartDate = dto.StartDate,
+                    EndDate = dto.EndDate,
+                    Status = SprintStatus.Active
+                };
+
+                _context.Sprints.Add(sprint);
+                await _context.SaveChangesAsync();
+
+                if (dto.TaskIds != null && dto.TaskIds.Any())
+                {
+                    var tasksToUpdate = await _context.Tasks
+                        .Where(t => dto.TaskIds.Contains(t.Id))
+                        .ToListAsync();
+
+                    foreach (var task in tasksToUpdate)
+                    {
+                        task.SprintId = sprint.Id;
+                    }
+                    await _context.SaveChangesAsync();
+                }
+
+                await transaction.CommitAsync();
+
+                // Retourner un DTO explicite pour éviter le cycle JSON
+                var responseDto = new Sprint
+                {
+                    Id = sprint.Id,
+                    Name = sprint.Name,
+                    StartDate = sprint.StartDate,
+                    EndDate = sprint.EndDate,
+                    Status = sprint.Status
+                };
+
+                return CreatedAtAction(nameof(GetSprints), new { id = sprint.Id }, responseDto);
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
     }
 }
