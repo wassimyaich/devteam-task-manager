@@ -47,9 +47,19 @@ namespace DevTeamTaskManager.Api.Data
                 new Developer { Id = 3, Name = "Mehdi Trabelsi", Email = "mehdi@devteam.local" }
             );
 
+            // modelBuilder.Entity<Sprint>().HasData(
+            //     new Sprint { Id = 1, Name = "Sprint 1 - MVP Foundation", StartDate = new DateTime(2026, 10, 1), EndDate = new DateTime(2026, 10, 15), Status = SprintStatus.Active }
+            // );
             modelBuilder.Entity<Sprint>().HasData(
-                new Sprint { Id = 1, Name = "Sprint 1 - MVP Foundation", StartDate = new DateTime(2026, 10, 1), EndDate = new DateTime(2026, 10, 15), Status = SprintStatus.Active }
-            );
+    new Sprint
+    {
+        Id = 1,
+        Name = "Sprint 1 - MVP Foundation",
+        StartDate = DateTime.SpecifyKind(new DateTime(2026, 10, 1), DateTimeKind.Utc),
+        EndDate = DateTime.SpecifyKind(new DateTime(2026, 10, 15), DateTimeKind.Utc),
+        Status = SprintStatus.Active
+    }
+);
         }
     }
 }
