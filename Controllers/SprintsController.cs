@@ -178,8 +178,11 @@ namespace DevTeamTaskManager.Api.Controllers
                 var sprint = new Sprint
                 {
                     Name = dto.Name,
-                    StartDate = dto.StartDate,
-                    EndDate = dto.EndDate,
+                    // StartDate = dto.StartDate,
+                    // EndDate = dto.EndDate,
+                    // CORRECTION ICI : Forcer le Kind en UTC
+                    StartDate = DateTime.SpecifyKind(dto.StartDate, DateTimeKind.Utc),
+                    EndDate = DateTime.SpecifyKind(dto.EndDate, DateTimeKind.Utc),
                     Status = SprintStatus.Active
                 };
 
