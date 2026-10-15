@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using DevTeamTaskManager.Api.Entities;
 using DevTeamTaskManager.Api.Enums;
 using System;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace DevTeamTaskManager.Api.Data
 {
@@ -13,6 +14,16 @@ namespace DevTeamTaskManager.Api.Data
         public DbSet<Sprint> Sprints => Set<Sprint>();
         public DbSet<TaskItem> Tasks => Set<TaskItem>();
         public DbSet<TimeEntry> TimeEntries => Set<TimeEntry>();
+
+        protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+        {
+            base.ConfigureConventions(configurationBuilder);
+
+            // Convertit automatiquement tous les DateTime en UTC pour PostgreSQL (timestamp with time zone)
+            configurationBuilder
+                .Properties<DateTime>()
+                .HaveConversion<UtcValueConverter>();
+        }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -47,19 +58,24 @@ namespace DevTeamTaskManager.Api.Data
                 new Developer { Id = 3, Name = "Mehdi Trabelsi", Email = "mehdi@devteam.local" }
             );
 
-            // modelBuilder.Entity<Sprint>().HasData(
-            //     new Sprint { Id = 1, Name = "Sprint 1 - MVP Foundation", StartDate = new DateTime(2026, 10, 1), EndDate = new DateTime(2026, 10, 15), Status = SprintStatus.Active }
-            // );
             modelBuilder.Entity<Sprint>().HasData(
-    new Sprint
-    {
-        Id = 1,
-        Name = "Sprint 1 - MVP Foundation",
-        StartDate = DateTime.SpecifyKind(new DateTime(2026, 10, 1), DateTimeKind.Utc),
-        EndDate = DateTime.SpecifyKind(new DateTime(2026, 10, 15), DateTimeKind.Utc),
-        Status = SprintStatus.Active
-    }
-);
+                new Sprint
+                {
+                    Id = 1,
+                    Name = "Sprint 1 - MVP Foundation",
+                    StartDate = new DateTime(2026, 10, 1, 0, 0, 0, DateTimeKind.Utc),
+                    EndDate = new DateTime(2026, 10, 15, 0, 0, 0, DateTimeKind.Utc),
+                    Status = SprintStatus.Active
+                }
+            );
         }
+    }
+
+    public class UtcValueConverter : ValueConverter<DateTime, DateTime>
+    {
+        public UtcValueConverter() : base(
+            v => DateTime.SpecifyKind(v, DateTimeKind.Utc),
+            v => DateTime.SpecifyKind(v, DateTimeKind.Utc))
+        { }
     }
 }
