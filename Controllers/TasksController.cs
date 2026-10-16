@@ -19,13 +19,15 @@ namespace DevTeamTaskManager.Api.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<TaskResponseDto>>> GetTasks(
-            [FromQuery] string? client,
-            [FromQuery] int? assigneeId,
-            [FromQuery] Status? status,
-            [FromQuery] Priority? priority,
-            [FromQuery] int? sprintId,
-            [FromQuery] bool? unassigned)
+        public async Task<ActionResult<object>> GetTasks(
+     [FromQuery] string? client,
+     [FromQuery] int? assigneeId,
+     [FromQuery] Status? status,
+     [FromQuery] Priority? priority,
+     [FromQuery] int? sprintId,
+     [FromQuery] bool? unassigned,
+     [FromQuery] int pageNumber = 1,
+     [FromQuery] int pageSize = 15)
         {
             var query = _context.Tasks
                 .Include(t => t.Assignee)
@@ -33,6 +35,7 @@ namespace DevTeamTaskManager.Api.Controllers
                 .Include(t => t.TimeEntries)
                 .AsQueryable();
 
+            // Application des filtres existants
             if (!string.IsNullOrWhiteSpace(client))
                 query = query.Where(t => t.Client.Contains(client));
 
@@ -51,11 +54,27 @@ namespace DevTeamTaskManager.Api.Controllers
             if (unassigned == true)
                 query = query.Where(t => t.SprintId == null);
 
+            // 1. Comptage du total des enregistrements avant le découpage
+            var totalRecords = await query.CountAsync();
+
+            // 2. Application du tri, du Skip et du Take pour la pagination
             var tasks = await query
                 .OrderByDescending(t => t.CreatedAt)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
                 .ToListAsync();
 
-            return Ok(tasks.Select(MapToDto));
+            var totalPages = (int)Math.Ceiling(totalRecords / (double)pageSize);
+
+            // 3. Retour d'un objet structuré avec métadonnées
+            return Ok(new
+            {
+                Items = tasks.Select(MapToDto),
+                PageNumber = pageNumber,
+                PageSize = pageSize,
+                TotalPages = totalPages,
+                TotalRecords = totalRecords
+            });
         }
 
         [HttpGet("{id}")]
