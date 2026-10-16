@@ -108,17 +108,37 @@ namespace DevTeamTaskManager.Api.Controllers
 
             return Ok(report);
         }
+
+
         [HttpPatch("{id}/close")]
         public async Task<IActionResult> CloseSprint(int id)
         {
-            var sprint = await _context.Sprints.FindAsync(id);
+            // Charger le sprint en incluant ses tâches associées
+            var sprint = await _context.Sprints
+                .Include(s => s.Tasks)
+                .FirstOrDefaultAsync(s => s.Id == id);
+
             if (sprint == null) return NotFound();
 
+            // 1. Clôturer le sprint
             sprint.Status = SprintStatus.Closed;
+
+            // 2. Renvoyer toutes les tâches non terminées vers le Backlog (SprintId = null)
+            foreach (var task in sprint.Tasks)
+            {
+                if (task.Status != Status.Completed)
+                {
+                    task.SprintId = null;
+                }
+            }
+
             await _context.SaveChangesAsync();
 
             return NoContent();
         }
+
+
+
         [HttpGet("active")]
         public async Task<ActionResult<IEnumerable<Sprint>>> GetActiveSprints()
         {

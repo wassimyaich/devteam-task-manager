@@ -8,6 +8,7 @@ SET XACT_ABORT ON;
 
 BEGIN TRY
     BEGIN TRANSACTION;
+    -- Tables temporaires pour stocker les ID insérés
     DECLARE @D TABLE (
         Id INT PRIMARY KEY);
     DECLARE @S TABLE (
@@ -16,6 +17,7 @@ BEGIN TRY
         Id INT PRIMARY KEY);
     DECLARE @E TABLE (
         Id INT PRIMARY KEY);
+    -- Récupération des max ID actuels pour éviter les conflits
     DECLARE @D0 AS INT = ISNULL((SELECT MAX(Id)
                                  FROM   dbo.Developers), 0);
     DECLARE @S0 AS INT = ISNULL((SELECT MAX(Id)
@@ -37,7 +39,7 @@ BEGIN TRY
            CONCAT('test', @D0 + n, '@devteam.local')
     FROM   (VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10)) AS v(n);
     SET IDENTITY_INSERT dbo.Developers OFF;
-    -- 2. Insert 5 sprints
+    -- 2. Insert 5 sprints (Statut : 1 = Planned, 2 = Active, 3 = Closed)
     SET IDENTITY_INSERT dbo.Sprints ON;
     INSERT INTO dbo.Sprints (
         Id,
@@ -51,7 +53,7 @@ BEGIN TRY
            CONCAT('Test Sprint ', n),
            DATEADD(DAY, (n - 1) * 14, CAST ('2026-10-01' AS DATETIME)),
            DATEADD(DAY, (n - 1) * 14 + 13, CAST ('2026-10-01' AS DATETIME)),
-           CASE WHEN n = 1 THEN 2 ELSE 1 END
+           CASE WHEN n = 1 THEN 3 ELSE 2 END -- Le sprint 1 est fermé (3), les autres sont actifs (2)
     FROM   (VALUES (1), (2), (3), (4), (5)) AS v(n);
     SET IDENTITY_INSERT dbo.Sprints OFF;
     -- 3. Insert 35 tasks
@@ -102,7 +104,7 @@ BEGIN TRY
            GETUTCDATE()
     FROM   (VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10), (11), (12), (13), (14), (15), (16), (17), (18), (19), (20), (21), (22), (23), (24), (25), (26), (27), (28), (29), (30), (31), (32), (33), (34), (35), (36), (37), (38), (39), (40), (41), (42), (43), (44), (45), (46), (47), (48), (49), (50)) AS v(n);
     SET IDENTITY_INSERT dbo.TimeEntries OFF;
-    -- 5. Verify saved records before committing
+    -- 5. Validation des enregistrements
     SELECT 'Developers' AS TableName,
            COUNT(*) AS InsertedRecords
     FROM   @D
@@ -125,14 +127,13 @@ BEGIN TRY
                           FROM   @S) + (SELECT COUNT(*)
                                         FROM   @T) + (SELECT COUNT(*)
                                                       FROM   @E);
-    -- 6. Permanently save the records
     COMMIT TRANSACTION;
     PRINT 'SUCCESS: 100 sample records saved to DevTeamDb.';
-    PRINT 'Refresh your frontend to test the data.';
 END TRY
 BEGIN CATCH
     IF XACT_STATE() <> 0
         ROLLBACK;
+    -- Sécurité pour désactiver IDENTITY_INSERT en cas d'erreur
     BEGIN TRY
         SET IDENTITY_INSERT dbo.Developers OFF;
     END TRY
@@ -158,3 +159,22 @@ BEGIN CATCH
            ERROR_LINE() AS ErrorLine;
     THROW;
 END CATCH
+
+
+-- USE [DevTeamDb];
+-- GO
+-- BEGIN TRY
+--     BEGIN TRANSACTION;
+--     DELETE FROM dbo.TimeEntries;
+--     DELETE FROM dbo.Tasks;
+--     DELETE FROM dbo.Sprints;
+--     DELETE FROM dbo.Developers;
+--     COMMIT TRANSACTION;
+--     PRINT 'All table data deleted successfully.';
+-- END TRY
+-- BEGIN CATCH
+--     IF @@TRANCOUNT > 0
+--         ROLLBACK TRANSACTION;
+--     THROW;
+-- END CATCH;
+-- GO

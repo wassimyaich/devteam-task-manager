@@ -169,6 +169,6 @@ C:\xampp\htdocs\DevTeamTaskManager\DevTeamTaskManager.Api\obj\Debug\net10.0\ref\
 C:\xampp\htdocs\DevTeamTaskManager\DevTeamTaskManager.Api\bin\Debug\net10.0\DevTeamTaskManager.Api.staticwebassets.runtime.json
 C:\xampp\htdocs\DevTeamTaskManager\DevTeamTaskManager.Api\obj\Debug\net10.0\DevTeamTaskManager.Api.sourcelink.json
 C:\xampp\htdocs\DevTeamTaskManager\DevTeamTaskManager.Api\bin\Debug\net10.0\DevTeamTaskManager-TestReport.json
-C:\xampp\htdocs\DevTeamTaskManager\DevTeamTaskManager.Api\obj\Debug\net10.0\compressed\qjzv7la75q-{0}-uo43z9ei3n-uo43z9ei3n.gz
 C:\xampp\htdocs\DevTeamTaskManager\DevTeamTaskManager.Api\bin\Debug\net10.0\Npgsql.dll
 C:\xampp\htdocs\DevTeamTaskManager\DevTeamTaskManager.Api\bin\Debug\net10.0\Npgsql.EntityFrameworkCore.PostgreSQL.dll
+C:\xampp\htdocs\DevTeamTaskManager\DevTeamTaskManager.Api\obj\Debug\net10.0\compressed\qjzv7la75q-{0}-co0pu2vqac-co0pu2vqac.gz
